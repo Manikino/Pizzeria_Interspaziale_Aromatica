@@ -66,6 +66,14 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLevelButtons();
     });
     
+    // Event listener per il pulsante del livello 1
+    document.getElementById('level-1').addEventListener('click', function() {
+        hideAllSections();
+        document.getElementById('game-area').classList.remove('hidden');
+        currentLevel = 1;
+        startGame();
+    });
+    
     btnCredits.addEventListener('click', function() {
         hideAllSections();
         credits.classList.remove('hidden');
@@ -91,24 +99,25 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
-    // Funzione per nascondere tutte le sezioni
-    function hideAllSections() {
-        mainMenu.classList.add('hidden');
-        gameArea.classList.add('hidden');
-        documentation.classList.add('hidden');
-        credits.classList.add('hidden');
-        gameOver.classList.add('hidden');
-    }
-    
-    // Funzione per tornare al menu principale
-    function backToMenu() {
-        hideAllSections();
-        mainMenu.classList.remove('hidden');
-    }
-    
-    // Carica le immagini
+        // Carica le immagini
     loadImages();
 });
+
+// Funzione per nascondere tutte le sezioni
+function hideAllSections() {
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-area').classList.add('hidden');
+    document.getElementById('documentation').classList.add('hidden');
+    document.getElementById('credits').classList.add('hidden');
+    document.getElementById('game-over').classList.add('hidden');
+    document.getElementById('level-select').classList.add('hidden');
+}
+
+// Funzione per tornare al menu principale
+function backToMenu() {
+    hideAllSections();
+    document.getElementById('main-menu').classList.remove('hidden');
+}
 
 // Oggetti per le immagini
 const images = {
@@ -136,13 +145,14 @@ function loadImages() {
 
 // Avvio del gioco
 function startGame() {
-    // Reset delle variabili di gioco
-    currentLevel = 1;
+    // Reset delle variabili di gioco (mantiene il livello corrente)
     score = 0;
     progress = 0;
     meteorites = [];
     spaceship.bullets = [];
-    spaceship.canShoot = false; // Non può sparare al livello 1
+    
+    // Imposta la capacità di sparare in base al livello
+    spaceship.canShoot = currentLevel >= 2;
     
     // Posizionamento iniziale della navicella
     spaceship.x = canvas.width / 2 - spaceship.width / 2;
@@ -243,17 +253,19 @@ function updateSpaceshipPosition() {
     }
     
     // Sparo (solo dal livello 2 in poi)
-    if (gameKeys.space && spaceship.canShoot && currentLevel >= 2) {
-        // Limitazione della frequenza di sparo
-        if (!spaceship.lastShot || Date.now() - spaceship.lastShot > 300) {
-            spaceship.bullets.push({
-                x: spaceship.x + spaceship.width / 2 - 2,
-                y: spaceship.y,
-                width: 4,
-                height: 10,
-                speed: 10
-            });
-            spaceship.lastShot = Date.now();
+    if (gameKeys.space && currentLevel >= 2) {
+        if (spaceship.canShoot) {
+            // Limitazione della frequenza di sparo
+            if (!spaceship.lastShot || Date.now() - spaceship.lastShot > 300) {
+                spaceship.bullets.push({
+                    x: spaceship.x + spaceship.width / 2 - 2,
+                    y: spaceship.y,
+                    width: 4,
+                    height: 10,
+                    speed: 10
+                });
+                spaceship.lastShot = Date.now();
+            }
         }
     }
 }
@@ -371,25 +383,77 @@ function checkProgress() {
         // Passaggio al livello successivo
         currentLevel++;
         
-        if (currentLevel > 3) {
-            // Vittoria finale
-            victory();
-        } else {
-            // Avanzamento al livello successivo
+        // Sblocca il livello successivo se non è già sbloccato
+        if (currentLevel > unlockedLevels) {
+            unlockedLevels = currentLevel;
+        }
+        
+        if (currentLevel > 6) {
+            // Modalità infinita - continua senza interruzioni
             progress = 0;
-            meteorites = [];
-            spaceship.bullets = [];
-            
-            // Dal livello 2 in poi si può sparare
-            if (currentLevel >= 2) {
-                spaceship.canShoot = true;
-            }
-            
-            // Aggiornamento dell'interfaccia
-            updateUI();
-            
-            // Generazione dei nuovi meteoriti
+            score = 0;
+            // Genera nuovi meteoriti per il livello corrente
             generateMeteorites();
+            // Aggiorna l'interfaccia
+            updateUI();
+        } else if (currentLevel == 6) {
+            // Livello 6 - Inizio della modalità infinita
+            gameActive = false;
+            clearInterval(gameLoop);
+            
+            // Nascondi l'area di gioco
+            document.getElementById('game-area').classList.add('hidden');
+            
+            // Mostra la schermata di selezione livelli
+            document.getElementById('level-select').classList.remove('hidden');
+            
+            // Aggiorna i pulsanti dei livelli
+            updateLevelButtons();
+        } else {
+            // Livelli 1-5 - Mostra la schermata di livello completato
+            gameActive = false;
+            clearInterval(gameLoop);
+            
+            // Nascondi l'area di gioco
+            document.getElementById('game-area').classList.add('hidden');
+            
+            // Mostra la schermata di selezione livelli
+            document.getElementById('level-select').classList.remove('hidden');
+            
+            // Aggiorna i pulsanti dei livelli
+            updateLevelButtons();
+        }
+    }
+}
+
+// Funzione per aggiornare i pulsanti dei livelli
+function updateLevelButtons() {
+    // Aggiorna lo stato dei pulsanti dei livelli in base ai livelli sbloccati
+    for (let i = 1; i <= 6; i++) {
+        const levelButton = document.getElementById('level-' + i);
+        
+        // Aggiorna il testo del livello 6 per mostrare "Modalità Infinita"
+        if (i === 6) {
+            levelButton.textContent = "Modalità Infinita";
+        }
+        
+        if (i <= unlockedLevels) {
+            levelButton.classList.remove('locked');
+            levelButton.classList.add('unlocked');
+            
+            // Aggiungi event listener solo se non è già stato aggiunto
+            if (!levelButton.hasAttribute('data-has-listener')) {
+                levelButton.addEventListener('click', function() {
+                    hideAllSections();
+                    document.getElementById('game-area').classList.remove('hidden');
+                    currentLevel = i;
+                    startGame();
+                });
+                levelButton.setAttribute('data-has-listener', 'true');
+            }
+        } else {
+            levelButton.classList.remove('unlocked');
+            levelButton.classList.add('locked');
         }
     }
 }
@@ -402,6 +466,14 @@ function gameOver() {
     // Aggiornamento dell'interfaccia di game over
     document.getElementById('final-score').textContent = score;
     document.getElementById('final-level').textContent = currentLevel;
+    
+    // Se il livello è 6 o superiore, riavvia dalla modalità infinita
+    if (currentLevel >= 6) {
+        currentLevel = 6;
+        document.getElementById('restart-message').textContent = "Riprendi dalla Modalità Infinita";
+    } else {
+        document.getElementById('restart-message').textContent = "Riprova";
+    }
     
     // Visualizzazione della schermata di game over
     document.getElementById('game-area').classList.add('hidden');
