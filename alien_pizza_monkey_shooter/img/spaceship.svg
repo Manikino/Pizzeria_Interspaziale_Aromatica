@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="60" height="40" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Corpo della navicella -->
+  <ellipse cx="30" cy="20" rx="25" ry="15" fill="#666" stroke="#333" stroke-width="2"/>
+  
+  <!-- Cupola superiore -->
+  <ellipse cx="30" cy="15" rx="15" ry="10" fill="#99ccff" stroke="#6699cc" stroke-width="1.5"/>
+  
+  <!-- Finestra -->
+  <circle cx="30" cy="15" r="5" fill="#ffff99" stroke="#ffcc00" stroke-width="1"/>
+  
+  <!-- Propulsori -->
+  <rect x="5" y="18" width="5" height="8" rx="2" fill="#ff6600" stroke="#cc3300" stroke-width="1"/>
+  <rect x="50" y="18" width="5" height="8" rx="2" fill="#ff6600" stroke="#cc3300" stroke-width="1"/>
+  
+  <!-- Fiamme dei propulsori -->
+  <polygon points="7.5,26 5,32 10,32" fill="#ff9900" stroke="#ff6600" stroke-width="0.5">
+    <animate attributeName="height" values="6;10;6" dur="0.5s" repeatCount="indefinite" />
+  </polygon>
+  <polygon points="52.5,26 50,32 55,32" fill="#ff9900" stroke="#ff6600" stroke-width="0.5">
+    <animate attributeName="height" values="6;10;6" dur="0.5s" repeatCount="indefinite" />
+  </polygon>
+  
+  <!-- Logo pizza -->
+  <circle cx="30" cy="25" r="5" fill="#ff9933" stroke="#cc6600" stroke-width="1"/>
+  <path d="M27,25 L33,25 M30,22 L30,28" stroke="#cc6600" stroke-width="1"/>
+</svg>

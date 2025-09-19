@@ -1,0 +1,311 @@
+/* Stile generale */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #0a0a2a;
+    color: #fff;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    font-size: 2.5rem;
+    color: #ff9900;
+    text-shadow: 0 0 10px rgba(255, 153, 0, 0.5);
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: #ff6600;
+}
+
+h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: #66ccff;
+}
+
+h4 {
+    font-size: 1.1rem;
+    margin: 15px 0 10px;
+    color: #ff9900;
+}
+
+/* Menu principale */
+.main-menu {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin: 50px 0;
+}
+
+.menu-button {
+    width: 200px;
+    padding: 15px;
+    background-color: #ff6600;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.menu-button:hover {
+    background-color: #ff9900;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 153, 0, 0.7);
+}
+
+/* Sezioni di gioco */
+.game-section {
+    background-color: rgba(20, 30, 60, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Selezione livelli */
+.level-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.level-button {
+    padding: 20px;
+    font-size: 1.2rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.unlocked {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #2E7D32;
+}
+
+.locked {
+    background-color: #757575;
+    color: #BDBDBD;
+    border: 2px solid #616161;
+    cursor: not-allowed;
+    position: relative;
+}
+
+.locked::after {
+    content: '🔒';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+}
+
+.unlocked:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.7);
+}
+
+/* Area di gioco */
+.game-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+#game-canvas {
+    display: block;
+    background-color: #000;
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(0, 153, 255, 0.5);
+}
+
+/* Barra di progresso */
+.progress-bar {
+    width: 30px;
+    height: 600px;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 10px;
+    margin-right: 10px;
+    position: relative;
+}
+
+.progress-fill {
+    width: 100%;
+    height: 0%;
+    background-color: #4CAF50;
+    position: absolute;
+    bottom: 0;
+    border-radius: 8px;
+    transition: height 0.3s;
+}
+
+#progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Livello completato */
+.pizza-container {
+    display: flex;
+    justify-content: center;
+    margin: 30px 0;
+}
+
+.rotating-pizza {
+    width: 150px;
+    height: 150px;
+    animation: rotate 5s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.level-complete-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.level-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+}
+
+.game-controls {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 150px;
+    height: 600px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 0 5px 5px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.game-controls button {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.controls-info {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+/* Documentazione */
+.docs-content {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+.docs-content ul {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+/* Crediti */
+.credits-content {
+    text-align: center;
+    padding: 20px;
+}
+
+.monkey-avatar {
+    width: 100px;
+    height: 100px;
+    background-image: url('../img/monkey.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    margin: 20px auto;
+}
+
+/* Bottoni di navigazione */
+.back-button {
+    display: block;
+    width: 200px;
+    margin: 20px auto 0;
+    padding: 10px;
+    background-color: #3399ff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background-color: #66ccff;
+}
+
+/* Game Over */
+#game-over {
+    text-align: center;
+}
+
+#game-over p {
+    font-size: 1.2rem;
+    margin: 15px 0;
+}
+
+#game-over .menu-button {
+    margin: 20px auto;
+}
+
+/* Responsive */
+@media (max-width: 850px) {
+    #game-canvas {
+        width: 100%;
+        height: auto;
+    }
+    
+    .progress-bar {
+        height: 100%;
+    }
+}

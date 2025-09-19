@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Testa della scimmia -->
+  <circle cx="40" cy="35" r="25" fill="#8B4513" stroke="#5D2906" stroke-width="2"/>
+  
+  <!-- Faccia -->
+  <circle cx="40" cy="38" r="18" fill="#D2B48C" stroke="#8B4513" stroke-width="1"/>
+  
+  <!-- Occhi -->
+  <circle cx="30" cy="30" r="5" fill="#FFFFFF" stroke="#000000" stroke-width="1"/>
+  <circle cx="50" cy="30" r="5" fill="#FFFFFF" stroke="#000000" stroke-width="1"/>
+  <circle cx="30" cy="30" r="2" fill="#000000"/>
+  <circle cx="50" cy="30" r="2" fill="#000000"/>
+  
+  <!-- Antenne aliene -->
+  <line x1="35" y1="15" x2="30" y2="5" stroke="#8B4513" stroke-width="2"/>
+  <line x1="45" y1="15" x2="50" y2="5" stroke="#8B4513" stroke-width="2"/>
+  <circle cx="30" cy="5" r="3" fill="#66FF66" stroke="#33CC33" stroke-width="1"/>
+  <circle cx="50" cy="5" r="3" fill="#66FF66" stroke="#33CC33" stroke-width="1"/>
+  
+  <!-- Bocca -->
+  <path d="M30,45 Q40,55 50,45" fill="none" stroke="#5D2906" stroke-width="2"/>
+  
+  <!-- Orecchie -->
+  <ellipse cx="20" cy="25" rx="8" ry="12" fill="#8B4513" stroke="#5D2906" stroke-width="1"/>
+  <ellipse cx="60" cy="25" rx="8" ry="12" fill="#8B4513" stroke="#5D2906" stroke-width="1"/>
+  
+  <!-- Corpo/Uniforme -->
+  <path d="M25,60 Q40,70 55,60 L55,80 L25,80 Z" fill="#FF6600" stroke="#CC3300" stroke-width="1"/>
+  
+  <!-- Pizza -->
+  <circle cx="40" cy="65" r="10" fill="#FFCC66" stroke="#CC9933" stroke-width="1"/>
+  <circle cx="40" cy="65" r="8" fill="#FF9933" stroke="#CC6600" stroke-width="0.5"/>
+  <circle cx="36" cy="62" r="1.5" fill="#CC3300"/>
+  <circle cx="44" cy="62" r="1.5" fill="#CC3300"/>
+  <circle cx="40" cy="68" r="1.5" fill="#CC3300"/>
+  <circle cx="35" cy="67" r="1.5" fill="#009900"/>
+  <circle cx="45" cy="67" r="1.5" fill="#009900"/>
+</svg>
