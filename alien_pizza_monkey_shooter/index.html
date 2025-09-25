@@ -31,6 +31,9 @@
                 <button id="level-5" class="level-button locked">Livello 5</button>
                 <button id="level-6" class="level-button locked">Livello 6</button>
             </div>
+            <div class="infinite-mode-option">
+                <button id="infinite-mode" class="menu-button">Modalità Infinita</button>
+            </div>
             <button id="back-from-levels" class="back-button">Torna al Menu</button>
         </div>
 
@@ -67,10 +70,8 @@
                     <span>Livello: <span id="current-level">1</span></span>
                     <span>Pizza: <span id="current-pizza">Margherita</span></span>
                     <span>Punteggio: <span id="score">0</span></span>
-                </div>
-                <div class="game-controls">
-                    <button id="pause-btn">Pausa</button>
-                    <button id="back-from-game" class="back-button">Torna al Menu</button>
+                    <div class="bullets-counter">Proiettili: <span id="bullets-count">20</span> <span class="bullet-icon">🔹</span></div>
+                    <div class="pause-instruction">Premi ESC per mettere in pausa</div>
                 </div>
             </div>
         </div>
@@ -92,18 +93,12 @@
             <h3>Game Over</h3>
             <p>Punteggio finale: <span id="final-score">0</span></p>
             <p>Livello raggiunto: <span id="final-level">0</span></p>
-            <button id="restart-btn" class="menu-button"><span id="restart-message">Rigioca</span></button>
+            <button id="restart-btn" class="menu-button">Rigioca</button>
             <button id="back-from-gameover" class="back-button">Torna al Menu</button>
         </div>
         
         <!-- Livello Completato -->
         <div id="level-complete" class="game-section hidden">
-            <h3>Congratulazioni!</h3>
-            <div class="pizza-container">
-                <img src="img/pizzeria.svg" class="rotating-pizza" alt="Pizza consegnata">
-            </div>
-            <p>Hai completato il livello <span id="completed-level">1</span>!</p>
-            <p>Pizza consegnata con successo!</p>
             <div class="level-complete-buttons">
                 <button id="next-level-btn" class="menu-button">Livello Successivo</button>
                 <button id="back-to-levels-btn" class="back-button">Torna alla Selezione</button>

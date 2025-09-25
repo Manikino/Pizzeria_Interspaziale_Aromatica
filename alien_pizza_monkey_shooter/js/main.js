@@ -5,8 +5,11 @@ let gameLoop;
 let currentLevel = 1;
 let score = 0;
 let progress = 0;
-let pizzaTypes = ["Margherita", "Pepperoni", "Super Spaziale", "Quattro Stagioni", "Capricciosa", "Galattica"];
+let pizzaTypes = ["Margherita", "Pepperoni", "Super Spaziale", "Quattro Stagioni", "Capricciosa", "Galattica", "Infinita"];
 let unlockedLevels = 1; // Solo il primo livello è sbloccato all'inizio
+let isInfiniteMode = false; // Modalità infinita
+let maxBullets = 20; // Numero massimo di proiettili disponibili
+let remainingBullets = maxBullets; // Proiettili rimanenti
 
 // Oggetti di gioco
 let spaceship = {
@@ -36,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const documentation = document.getElementById('documentation');
     const credits = document.getElementById('credits');
     const gameOver = document.getElementById('game-over');
+    const levelComplete = document.getElementById('level-complete');
     
     // Bottoni menu
     const btnDocs = document.getElementById('btn-docs');
@@ -44,11 +48,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Bottoni navigazione
     const backFromDocs = document.getElementById('back-from-docs');
-    const backFromGame = document.getElementById('back-from-game');
     const backFromCredits = document.getElementById('back-from-credits');
     const backFromGameover = document.getElementById('back-from-gameover');
     const restartBtn = document.getElementById('restart-btn');
-    const pauseBtn = document.getElementById('pause-btn');
+    const nextLevelBtn = document.getElementById('next-level-btn');
+    const backToLevelsBtn = document.getElementById('back-to-levels-btn');
     
     // Canvas e contesto
     canvas = document.getElementById('game-canvas');
@@ -66,11 +70,25 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLevelButtons();
     });
     
-    // Event listener per il pulsante del livello 1
-    document.getElementById('level-1').addEventListener('click', function() {
+    // Event listeners per i livelli
+    for (let i = 1; i <= 6; i++) {
+        document.getElementById('level-' + i).addEventListener('click', function() {
+            if (i <= unlockedLevels) {
+                hideAllSections();
+                document.getElementById('game-area').classList.remove('hidden');
+                currentLevel = i;
+                isInfiniteMode = false;
+                startGame();
+            }
+        });
+    }
+    
+    // Event listener per la modalità infinita
+    document.getElementById('infinite-mode').addEventListener('click', function() {
         hideAllSections();
         document.getElementById('game-area').classList.remove('hidden');
-        currentLevel = 1;
+        currentLevel = 1; // Inizia sempre dal livello 1
+        isInfiniteMode = true;
         startGame();
     });
     
@@ -81,10 +99,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listeners per i bottoni di navigazione
     backFromDocs.addEventListener('click', backToMenu);
-    backFromGame.addEventListener('click', function() {
-        stopGame();
-        backToMenu();
-    });
     backFromCredits.addEventListener('click', backToMenu);
     backFromGameover.addEventListener('click', backToMenu);
     restartBtn.addEventListener('click', function() {
@@ -93,7 +107,18 @@ document.addEventListener('DOMContentLoaded', function() {
         startGame();
     });
     
-    pauseBtn.addEventListener('click', togglePause);
+    // Event listeners per la schermata di livello completato
+    nextLevelBtn.addEventListener('click', function() {
+        hideAllSections();
+        gameArea.classList.remove('hidden');
+        startGame();
+    });
+    
+    backToLevelsBtn.addEventListener('click', function() {
+        hideAllSections();
+        document.getElementById('level-select').classList.remove('hidden');
+        updateLevelButtons();
+    });
     
     // Event listeners per i controlli di gioco
     window.addEventListener('keydown', handleKeyDown);
@@ -111,6 +136,7 @@ function hideAllSections() {
     document.getElementById('credits').classList.add('hidden');
     document.getElementById('game-over').classList.add('hidden');
     document.getElementById('level-select').classList.add('hidden');
+    document.getElementById('level-complete').classList.add('hidden');
 }
 
 // Funzione per tornare al menu principale
@@ -154,6 +180,14 @@ function startGame() {
     // Imposta la capacità di sparare in base al livello
     spaceship.canShoot = currentLevel >= 2;
     
+    // Imposta il numero di proiettili in base al livello
+    if (isInfiniteMode) {
+        maxBullets = 50;
+    } else {
+        maxBullets = 10 + (currentLevel * 2); // Più proiettili nei livelli superiori
+    }
+    remainingBullets = maxBullets;
+    
     // Posizionamento iniziale della navicella
     spaceship.x = canvas.width / 2 - spaceship.width / 2;
     spaceship.y = canvas.height - spaceship.height - 20;
@@ -178,11 +212,23 @@ function stopGame() {
 
 // Aggiornamento dell'interfaccia utente
 function updateUI() {
-    document.getElementById('current-level').textContent = currentLevel;
-    document.getElementById('current-pizza').textContent = pizzaTypes[currentLevel - 1];
-    document.getElementById('score').textContent = score;
-    document.getElementById('progress-fill').style.height = progress + '%';
+    document.getElementById('current-level').textContent = isInfiniteMode ? "∞" : currentLevel;
+    document.getElementById('current-pizza').textContent = pizzaTypes[isInfiniteMode ? 6 : currentLevel - 1];
+    
+    // Mostra il punteggio solo in modalità infinita
+    const scoreElement = document.getElementById('score');
+    const scoreContainer = scoreElement.parentElement;
+    
+    if (isInfiniteMode) {
+        scoreElement.textContent = score;
+        scoreContainer.style.display = 'inline-block';
+    } else {
+        scoreContainer.style.display = 'none';
+    }
+    
+    document.getElementById('progress-fill').style.width = progress + '%';
     document.getElementById('progress-text').textContent = Math.floor(progress) + '%';
+    document.getElementById('bullets-count').textContent = remainingBullets;
 }
 
 // Generazione dei meteoriti
@@ -254,7 +300,7 @@ function updateSpaceshipPosition() {
     
     // Sparo (solo dal livello 2 in poi)
     if (gameKeys.space && currentLevel >= 2) {
-        if (spaceship.canShoot) {
+        if (spaceship.canShoot && remainingBullets > 0) {
             // Limitazione della frequenza di sparo
             if (!spaceship.lastShot || Date.now() - spaceship.lastShot > 300) {
                 spaceship.bullets.push({
@@ -265,6 +311,8 @@ function updateSpaceshipPosition() {
                     speed: 10
                 });
                 spaceship.lastShot = Date.now();
+                remainingBullets--;
+                updateUI();
             }
         }
     }
@@ -325,8 +373,15 @@ function checkCollisions() {
                 // Collisione rilevata
                 spaceship.bullets.splice(i, 1);
                 meteorites.splice(j, 1);
-                score += 10 * currentLevel;
-                progress += 2;
+                
+                // Incrementa il punteggio solo in modalità infinita
+                if (isInfiniteMode) {
+                    score += 10 * currentLevel;
+                } else {
+                    // Nelle altre modalità, colpire i meteoriti riduce il tempo necessario per raggiungere il 100%
+                    progress += 1;
+                }
+                
                 updateUI();
                 break;
             }
@@ -384,41 +439,35 @@ function checkProgress() {
         currentLevel++;
         
         // Sblocca il livello successivo se non è già sbloccato
-        if (currentLevel > unlockedLevels) {
+        if (currentLevel > unlockedLevels && !isInfiniteMode) {
             unlockedLevels = currentLevel;
         }
         
-        if (currentLevel > 6) {
+        // Ferma il gioco
+        gameActive = false;
+        clearInterval(gameLoop);
+        
+        if (isInfiniteMode) {
             // Modalità infinita - continua senza interruzioni
+            currentLevel = currentLevel > 6 ? 1 : currentLevel; // Cicla tra i livelli 1-6
             progress = 0;
-            score = 0;
-            // Genera nuovi meteoriti per il livello corrente
-            generateMeteorites();
-            // Aggiorna l'interfaccia
-            updateUI();
-        } else if (currentLevel == 6) {
-            // Livello 6 - Inizio della modalità infinita
-            gameActive = false;
-            clearInterval(gameLoop);
-            
-            // Nascondi l'area di gioco
+            // Ricarica i proiettili senza pausa
+            remainingBullets = maxBullets;
+            // Riavvia il gioco immediatamente
+            startGame();
+        } else if (currentLevel > 6) {
+            // Hai completato tutti i livelli
             document.getElementById('game-area').classList.add('hidden');
-            
-            // Mostra la schermata di selezione livelli
-            document.getElementById('level-select').classList.remove('hidden');
+            document.getElementById('level-complete').classList.remove('hidden');
+            document.getElementById('completed-level').textContent = 6;
             
             // Aggiorna i pulsanti dei livelli
             updateLevelButtons();
         } else {
-            // Livelli 1-5 - Mostra la schermata di livello completato
-            gameActive = false;
-            clearInterval(gameLoop);
-            
-            // Nascondi l'area di gioco
+            // Livelli 1-6 - Mostra la schermata di congratulazioni
             document.getElementById('game-area').classList.add('hidden');
-            
-            // Mostra la schermata di selezione livelli
-            document.getElementById('level-select').classList.remove('hidden');
+            document.getElementById('level-complete').classList.remove('hidden');
+            document.getElementById('completed-level').textContent = currentLevel - 1;
             
             // Aggiorna i pulsanti dei livelli
             updateLevelButtons();
@@ -429,15 +478,13 @@ function checkProgress() {
 // Funzione per aggiornare i pulsanti dei livelli
 function updateLevelButtons() {
     // Aggiorna lo stato dei pulsanti dei livelli in base ai livelli sbloccati
-    for (let i = 1; i <= 6; i++) {
-        const levelButton = document.getElementById('level-' + i);
+    for (let i = 1; i <= 7; i++) {
+        const levelButton = document.getElementById(i === 7 ? 'level-7' : 'level-' + i);
         
-        // Aggiorna il testo del livello 6 per mostrare "Modalità Infinita"
-        if (i === 6) {
-            levelButton.textContent = "Modalità Infinita";
-        }
+        // Condizione di sblocco: livelli 1-6 normali, livello 7 (infinito) se hai sbloccato il 6
+        const isUnlocked = (i <= 6 && i <= unlockedLevels) || (i === 7 && unlockedLevels >= 6);
         
-        if (i <= unlockedLevels) {
+        if (isUnlocked) {
             levelButton.classList.remove('locked');
             levelButton.classList.add('unlocked');
             
@@ -447,6 +494,7 @@ function updateLevelButtons() {
                     hideAllSections();
                     document.getElementById('game-area').classList.remove('hidden');
                     currentLevel = i;
+                    isInfiniteMode = (i === 7);
                     startGame();
                 });
                 levelButton.setAttribute('data-has-listener', 'true');
@@ -467,12 +515,9 @@ function gameOver() {
     document.getElementById('final-score').textContent = score;
     document.getElementById('final-level').textContent = currentLevel;
     
-    // Se il livello è 6 o superiore, riavvia dalla modalità infinita
-    if (currentLevel >= 6) {
-        currentLevel = 6;
-        document.getElementById('restart-message').textContent = "Riprendi dalla Modalità Infinita";
-    } else {
-        document.getElementById('restart-message').textContent = "Riprova";
+    // In modalità infinita, riavvia sempre dal livello 1
+    if (isInfiniteMode) {
+        currentLevel = 1;
     }
     
     // Visualizzazione della schermata di game over
@@ -498,10 +543,13 @@ function victory() {
 function togglePause() {
     gameActive = !gameActive;
     
-    if (gameActive) {
-        document.getElementById('pause-btn').textContent = "Pausa";
+    // Non facciamo più riferimento ai bottoni rimossi
+    if (!gameActive) {
+        // Logica per la pausa
+        clearInterval(gameLoop);
     } else {
-        document.getElementById('pause-btn').textContent = "Riprendi";
+        // Logica per la ripresa
+        gameLoop = setInterval(gameUpdate, 1000 / 60);
     }
 }
 
