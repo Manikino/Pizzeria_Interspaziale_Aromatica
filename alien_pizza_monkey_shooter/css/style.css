@@ -10,9 +10,21 @@ html, body {
     overflow: hidden;
 }
 
+/* Rimuovi la regola che nasconde il titolo su schermi bassi
+@media (max-height: 600px) {
+    header h1, header h2 {
+        display: none;
+    }
+}
+*/
+
 body {
     font-family: 'Arial', sans-serif;
     background-color: #0a0a2a;
+background-image: url('../img/background.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     color: #fff;
     line-height: 1.6;
 }
@@ -102,6 +114,22 @@ h4 {
 
 .hidden {
     display: none;
+    opacity: 0;
+}
+
+/* Animazioni per le transizioni */
+.section {
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 /* Selezione livelli */
@@ -148,7 +176,18 @@ h4 {
     box-shadow: 0 0 15px rgba(76, 175, 80, 0.7);
 }
 
-/* Area di gioco */
+/* Nascondi l'immagine di sfondo durante il gameplay e tutte le schermate di gioco */
+#game-area {
+    background: #0a0a2a !important;
+    background-image: none !important;
+}
+
+/* Nascondi l'immagine di sfondo del body quando siamo in modalità gioco */
+body.game-mode {
+    background-image: none !important;
+    background-color: #0a0a2a !important;
+}
+
 .game-container {
     position: relative;
     width: 100%;
@@ -157,6 +196,8 @@ h4 {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding-right: 60px; /* Spazio per la barra verticale */
+    background: #0a0a2a;
 }
 
 #game-canvas {
@@ -169,32 +210,37 @@ h4 {
 
 /* Barra di progresso */
 .progress-bar {
-    width: 600px;
-    height: 30px;
+    width: 30px;
+    height: 400px;
     background-color: #333;
     border: 2px solid #555;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    position: relative;
+    border-radius: 15px;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    writing-mode: vertical-lr;
 }
 
 .progress-fill {
-    width: 0%;
-    height: 100%;
+    width: 100%;
+    height: 0%;
     background-color: #4CAF50;
     position: absolute;
+    bottom: 0;
     left: 0;
     border-radius: 8px;
-    transition: width 0.3s;
+    transition: height 0.3s;
 }
 
 #progress-text {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) rotate(-90deg);
     color: white;
     font-weight: bold;
+    font-size: 12px;
     white-space: nowrap;
 }
 
@@ -270,6 +316,21 @@ h4 {
 
 #level-complete.level-infinite::before {
     background-image: url('../img/bg-infinite.svg');
+}
+
+/* Quando si usa un background immagine per intera pagina vittoria/sconfitta */
+.bg-cover {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+#level-complete.bg-image-mode::before {
+    content: none !important;
+    background-image: none !important;
+}
+#level-complete.bg-image-mode,
+#game-over.bg-image-mode {
+    background-color: #000 !important;
 }
 
 .level-info {
