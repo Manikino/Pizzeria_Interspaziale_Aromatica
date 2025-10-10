@@ -92,23 +92,6 @@ let spaceship = {
     dashEndTime: 0
 };
 
-// Restituisce l'hitbox effettiva della navicella (ridotta rispetto al rendering)
-function getShipHitbox() {
-    // Riduciamo l'hitbox per rendere il gameplay pi meno punitivo
-        const w = spaceship.width || 30; // Adjusted width for hitbox
-        const h = spaceship.height || 40; // Height remains the same
-    const shrinkW = 0.7; // 70% della larghezza
-    const shrinkH = 0.75; // 75% dell'altezza
-    const offsetX = (w - w * shrinkW) / 2;
-    const offsetY = (h - h * shrinkH) / 2;
-    return {
-        x: spaceship.x + offsetX,
-        y: spaceship.y + offsetY,
-        width: Math.max(4, Math.round(w * shrinkW)),
-        height: Math.max(4, Math.round(h * shrinkH))
-    };
-}
-
 let meteorites = [];
 let gameKeys = {
     left: false,
@@ -164,45 +147,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const rect = button.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
-        // Spawn overlay UI particles for immediate feedback (menu)
-        if (typeof spawnUIParticle === 'function') {
-            for (let i = 0; i < 12; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = Math.random() * 26 + 6;
-                const px = x + Math.cos(angle) * distance;
-                const py = y + Math.sin(angle) * distance;
-                const p = spawnUIParticle(px, py, 'click');
-                if (p) {
-                    p.color = color || p.color;
-                    p.direction = { x: (Math.cos(angle) * (0.6 + Math.random())), y: (Math.sin(angle) * (0.6 + Math.random())) };
-                    p.size = 1.5 + Math.random() * 3;
-                    p.life = 20 + Math.random() * 20;
-                }
-            }
-        }
-
-        // Also create in-game explosion particles if the game canvas is active
-        if (gameActive) {
-            for (let i = 0; i < 8; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = Math.random() * 30 + 20;
-                const particle = createParticle(
-                    x + Math.cos(angle) * distance,
-                    y + Math.sin(angle) * distance,
-                    { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 },
-                    'explosion'
-                );
-                particle.color = color;
-                particle.size = Math.random() * 3 + 2;
-                particle.life = Math.random() * 20 + 10;
-                particles.push(particle);
-            }
+        
+        for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 30 + 20;
+            const particle = createParticle(
+                x + Math.cos(angle) * distance,
+                y + Math.sin(angle) * distance,
+                { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 },
+                'explosion'
+            );
+            particle.color = color;
+            particle.size = Math.random() * 3 + 2;
+            particle.life = Math.random() * 20 + 10;
+            particles.push(particle);
         }
     }
 
     // Event listeners per i bottoni del menu con effetti particellari
     btnDocs.addEventListener('click', function() {
-    createButtonParticles(btnDocs, '#6b5ff2');
+        createButtonParticles(btnDocs, '#74b9ff');
         setTimeout(() => {
             hideAllSections();
             showSection('documentation');
@@ -210,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     btnPlay.addEventListener('click', function() {
-    createButtonParticles(btnPlay, '#8f79f5');
+        createButtonParticles(btnPlay, '#ffcc00');
         setTimeout(() => {
             hideAllSections();
             showSection('level-select');
@@ -219,8 +183,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Aggiungi effetto hover con particelle
-    btnDocs.addEventListener('mouseenter', () => createButtonParticles(btnDocs, '#6b5ff2'));
-    btnPlay.addEventListener('mouseenter', () => createButtonParticles(btnPlay, '#8f79f5'));
+    btnDocs.addEventListener('mouseenter', () => createButtonParticles(btnDocs, '#74b9ff'));
+    btnPlay.addEventListener('mouseenter', () => createButtonParticles(btnPlay, '#ffcc00'));
     
     // Event listeners per i livelli
     for (let i = 1; i <= 6; i++) {
@@ -245,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     btnCredits.addEventListener('click', function() {
-    createButtonParticles(btnCredits, '#ff66a3');
+        createButtonParticles(btnCredits, '#d6a2e8');
         setTimeout(() => {
             hideAllSections();
             showSection('credits');
@@ -253,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Aggiungi effetto hover con particelle
-    btnCredits.addEventListener('mouseenter', () => createButtonParticles(btnCredits, '#ff66a3'));
+    btnCredits.addEventListener('mouseenter', () => createButtonParticles(btnCredits, '#d6a2e8'));
     
     // Event listeners per i bottoni di navigazione
     backFromDocs.addEventListener('click', backToMenu);
@@ -287,139 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadImages();
     // Attiva da subito il parallax del background alla partenza del sito
     enableMenuParallax();
-        // Init UI overlay (particles for hover/click/ambient)
-        initUIOverlay();
 });
-
-    /* UI overlay particle system (ambient stars + hover-fall + click-explode)
-       Uses its own overlay canvas placed on top of the page; lightweight and decoupled
-    */
-    let uiCanvas, uiCtx, uiParticles = [], uiParticlePool = [];
-    let uiAnimationId = null;
-
-    function initUIOverlay() {
-        // Create overlay canvas
-        uiCanvas = document.createElement('canvas');
-        uiCanvas.id = 'ui-overlay-canvas';
-        uiCanvas.style.position = 'fixed';
-        uiCanvas.style.left = '0';
-        uiCanvas.style.top = '0';
-        uiCanvas.style.pointerEvents = 'none';
-        uiCanvas.style.zIndex = '9999';
-        uiCanvas.width = window.innerWidth;
-        uiCanvas.height = window.innerHeight;
-        document.body.appendChild(uiCanvas);
-        uiCtx = uiCanvas.getContext('2d');
-
-        // Resize handler
-        window.addEventListener('resize', () => {
-            uiCanvas.width = window.innerWidth;
-            uiCanvas.height = window.innerHeight;
-        });
-
-        // Ambient spawn (low frequency)
-        setInterval(() => {
-            // spawn 1-3 ambient particles randomly across screen
-            const count = 1 + Math.floor(Math.random() * 3);
-            for (let i = 0; i < count; i++) {
-                spawnUIParticle(Math.random() * uiCanvas.width, Math.random() * uiCanvas.height, 'ambient');
-            }
-        }, 800);
-
-        // Hook pointer events for hover/click (menu buttons will trigger their own via createButtonParticles)
-        window.addEventListener('mousemove', (ev) => {
-            // Occasionally spawn tiny trailing dust at cursor for hover-fall feel
-            if (Math.random() < 0.12) {
-                const rect = document.body.getBoundingClientRect();
-                const x = ev.clientX;
-                const y = ev.clientY;
-                spawnUIParticle(x + (Math.random()-0.5)*8, y + 6 + Math.random()*6, 'hover');
-            }
-        });
-
-        window.addEventListener('click', (ev) => {
-            // Click explosion at pointer
-            const x = ev.clientX;
-            const y = ev.clientY;
-            for (let i = 0; i < 18; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 1 + Math.random() * 3;
-                const p = spawnUIParticle(x, y, 'click');
-                if (p) {
-                    p.direction = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
-                    p.size = 2 + Math.random() * 3;
-                    p.life = 30 + Math.random() * 20;
-                    p.color = (Math.random() < 0.5) ? '#8f79f5' : '#ff66a3';
-                }
-            }
-        });
-
-        // Start overlay loop
-        function uiLoop() {
-            updateUIParticles();
-            drawUIParticles();
-            uiAnimationId = requestAnimationFrame(uiLoop);
-        }
-        uiLoop();
-    }
-
-    function spawnUIParticle(x, y, kind = 'ambient') {
-        let p = uiParticlePool.length > 0 ? uiParticlePool.pop() : {};
-        p.x = x; p.y = y; p.kind = kind;
-        if (kind === 'ambient') {
-            p.size = 0.6 + Math.random() * 1.6;
-            p.direction = { x: (Math.random()-0.5) * 0.2, y: 0.2 + Math.random() * 0.6 };
-            p.life = 80 + Math.random() * 80;
-            p.color = 'rgba(255,255,255,' + (0.05 + Math.random()*0.25) + ')';
-        } else if (kind === 'hover') {
-            p.size = 1 + Math.random() * 2;
-            p.direction = { x: (Math.random()-0.5) * 0.6, y: 0.6 + Math.random() * 1.2 };
-            p.life = 28 + Math.random() * 18;
-            p.color = Math.random() < 0.6 ? '#6b5ff2' : '#8f79f5';
-        } else if (kind === 'click') {
-            p.size = 2 + Math.random() * 3;
-            p.direction = p.direction || { x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2 };
-            p.life = 24 + Math.random() * 24;
-            p.color = Math.random() < 0.6 ? '#8f79f5' : '#ff66a3';
-        }
-        uiParticles.push(p);
-        return p;
-    }
-
-    function updateUIParticles() {
-        for (let i = uiParticles.length - 1; i >= 0; i--) {
-            const p = uiParticles[i];
-            p.x += p.direction.x;
-            p.y += p.direction.y;
-            p.life--;
-            p.size *= 0.985;
-            if (p.life <= 0 || p.size < 0.3 || p.y > uiCanvas.height + 50 || p.x < -50 || p.x > uiCanvas.width + 50) {
-                uiParticlePool.push(p);
-                uiParticles.splice(i, 1);
-            }
-        }
-    }
-
-    function drawUIParticles() {
-        if (!uiCtx) return;
-        uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
-        uiCtx.save();
-        uiParticles.forEach(p => {
-            uiCtx.globalCompositeOperation = 'lighter';
-            uiCtx.beginPath();
-            uiCtx.fillStyle = p.color || '#fff';
-            uiCtx.globalAlpha = Math.max(0.05, Math.min(1, p.life / 80));
-            uiCtx.arc(p.x, p.y, Math.max(0.3, p.size), 0, Math.PI*2);
-            uiCtx.fill();
-            // small glow
-            uiCtx.globalAlpha = 0.12 * (p.life / 80);
-            uiCtx.fillStyle = p.color || '#fff';
-            uiCtx.beginPath();
-            uiCtx.arc(p.x, p.y, Math.max(2, p.size * 3), 0, Math.PI*2);
-            uiCtx.fill();
-        });
-        uiCtx.restore();
-    }
 
 // Parallax background per tutte le schermate (segue il mouse)
 let _menuParallaxHandler = null;
@@ -448,10 +280,15 @@ function enableMenuParallax() {
     };
     window.addEventListener('mousemove', _menuParallaxHandler);
 }
+
+// Non disabilitiamo più il parallax quando cambiamo sezione
 function disableMenuParallax() {
     if (_menuParallaxHandler) {
         window.removeEventListener('mousemove', _menuParallaxHandler);
         _menuParallaxHandler = null;
+        // Non resettiamo più la posizione dello sfondo
+        // document.body.style.backgroundPosition = '';
+        // document.body.style.backgroundSize = '';
     }
 }
 
@@ -498,7 +335,7 @@ function updatePowerups() {
         p.y += p.vy * getSpeedFactor();
         p.rot += 0.05;
         if (p.y > canvas.height + 30) {
-                powerups.splice(i, 1); // Remove powerup if it goes off screen
+            powerups.splice(i, 1);
         }
     }
 }
@@ -508,12 +345,11 @@ function checkPowerupCollisions() {
         const p = powerups[i];
         const px = p.x;
         const py = p.y;
-        const shipBox = getShipHitbox();
         if (
-            shipBox.x < px + 24 &&
-            shipBox.x + shipBox.width > px &&
-            shipBox.y < py + 24 &&
-            shipBox.y + shipBox.height > py
+            spaceship.x < px + 24 &&
+            spaceship.x + spaceship.width > px &&
+            spaceship.y < py + 24 &&
+            spaceship.y + spaceship.height > py
         ) {
             // pickup effect
             spaceship.pickupAnimUntil = Date.now() + 200;
@@ -527,7 +363,7 @@ function checkPowerupCollisions() {
                 }
             }
             updateUI();
-                powerups.splice(i, 1); // Remove powerup after collection
+            powerups.splice(i, 1);
         }
     }
 }
@@ -1873,24 +1709,19 @@ ctx.drawImage(images.spaceship, -spaceship.width * 0.7/2, -spaceship.height/2, s
         ctx.translate(p.x + 12, p.y + 12);
         ctx.rotate(p.rot || 0);
         if (p.type === 'ammo') {
-            // Box ammo: azzurro/celeste con +10
-            ctx.fillStyle = '#5B6EE6';
-            ctx.strokeStyle = '#4e5bd6';
+            // Box giallo con +10
+            ctx.fillStyle = '#ffcc00';
+            ctx.strokeStyle = '#cc9900';
             ctx.lineWidth = 2;
             ctx.fillRect(-12, -12, 24, 24);
             ctx.strokeRect(-12, -12, 24, 24);
-            ctx.fillStyle = '#05264c';
+            ctx.fillStyle = '#663300';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('+10', 0, 0);
         } else if (p.type === 'shield_timed') {
-            // Cerchio blu brillante per scudo temporaneo
-            ctx.fillStyle = 'rgba(100,180,255,0.12)';
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0,150,255,0.95)';
+            ctx.strokeStyle = 'rgba(0,180,255,0.9)';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(0, 0, 12, 0, Math.PI*2);
@@ -1915,7 +1746,10 @@ if (animationState === 'landing') {
         ctx.translate(meteorite.x + meteorite.width/2, meteorite.y + meteorite.height/2);
         ctx.rotate(meteorite.rotation);
         ctx.drawImage(images.meteorite, -meteorite.width/2, -meteorite.height/2, meteorite.width, meteorite.height);
-    ctx.restore();
+        ctx.restore();
+        
+        // Aggiorna la rotazione del meteorite
+        meteorite.rotation += meteorite.rotationSpeed;
     }
     
     // Pizza obiettivo (in base al livello) - Solo durante il gameplay

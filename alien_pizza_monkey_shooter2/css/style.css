@@ -5,25 +5,23 @@
     box-sizing: border-box;
 }
 
-/* Register the pixel font included in the repository (top-level) */
-@font-face {
-    font-family: 'PressStart2P';
-    src: url('../fonts/Press_Start_2P/PressStart2P-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
 html, body {
     height: 100%;
     overflow: hidden;
 }
 
+/* Rimuovi la regola che nasconde il titolo su schermi bassi
+@media (max-height: 600px) {
+    header h1, header h2 {
+        display: none;
+    }
+}
+*/
+
 body {
-    /* Se hai un font pixel (es. PressStart2P) metti il file in ../fonts/Press_Start_2P/ */
-    font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+    font-family: 'Arial', sans-serif;
     background-color: #0a0a2a;
-    background-image: url('../img/background.png');
+background-image: url('../img/background.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -47,32 +45,21 @@ header {
     margin-bottom: 30px;
 }
 
-/* Titolo principale: blu spaziale (diverso dal blu dei bottoni) */
 h1 {
-    font-size: 28px; /* use px for pixel-font clarity */
-    color: #5B6EE6; /* blu-violaceo spaziale */
-    font-family: 'PressStart2P', 'PixelFallback', monospace;
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeSpeed;
-    /* subtle glow kept but reduced for crisp text */
-    text-shadow: 0 0 6px rgba(91, 110, 230, 0.28);
+    font-size: 2.5rem;
+    color: #ff9900;
+    text-shadow: 0 0 10px rgba(255, 153, 0, 0.5);
 }
 
-/* Sottotitolo: blu spaziale leggermente pi scuro */
 h2 {
-    font-size: 18px; /* smaller pixel-size to match PressStart metrics */
-    color: #3E4AB8;
-    font-family: 'PressStart2P', 'PixelFallback', monospace;
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeSpeed;
+    font-size: 1.5rem;
+    color: #ff6600;
 }
 
 h3 {
     font-size: 1.3rem;
     margin-bottom: 15px;
-    color: #6976D0;
+    color: #66ccff;
 }
 
 h4 {
@@ -100,42 +87,38 @@ h4 {
 
 /* Stili specifici per ogni bottone */
 .menu-docs {
-    /* Blu/Azzurro per 'Manuale' */
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
-    border-color: #5B6EE6;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #74b9ff;
 }
 .menu-docs:hover {
-    background: linear-gradient(135deg, #8f9ef8, #5B6EE6);
+    background: linear-gradient(135deg, #74b9ff, #3498db);
     border-color: #a6e1ff;
 }
 
 .menu-play {
-    /* Viola per 'Play' */
-    background: linear-gradient(135deg, #b78eff, #8a5bff);
-    border-color: #d6a2e8;
+    background: linear-gradient(135deg, #ff6600, #ff3300);
+    border-color: #ffcc00;
 }
 .menu-play:hover {
-    background: linear-gradient(135deg, #d6a2e8, #b78eff);
-    border-color: #e8c3f8;
+    background: linear-gradient(135deg, #ff9900, #ff6600);
+    border-color: #ffee00;
 }
 
 .menu-credits {
-    /* Rosa per 'Credits' */
-    background: linear-gradient(135deg, #ff9ac8, #ff66a3);
-    border-color: #ffb6da;
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    border-color: #d6a2e8;
 }
 .menu-credits:hover {
-    background: linear-gradient(135deg, #ffd6eb, #ff9ac8);
-    border-color: #ffd6eb;
+    background: linear-gradient(135deg, #d6a2e8, #9b59b6);
+    border-color: #e8c3f8;
 }
 
-/* Bottone default ora usa il blu spaziale adattato */
 .menu-button {
     width: 220px;
     padding: 18px;
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
+    background: linear-gradient(135deg, #ff6600, #ff3300);
     color: white;
-    border: 3px solid rgba(91,110,230,0.18);
+    border: 3px solid #ffcc00;
     border-radius: 15px;
     font-size: 1.4rem;
     font-weight: bold;
@@ -145,7 +128,7 @@ h4 {
     letter-spacing: 2px;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 5px 15px rgba(91,110,230,0.18);
+    box-shadow: 0 5px 15px rgba(255, 102, 0, 0.4);
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
@@ -163,9 +146,10 @@ h4 {
 }
 
 .menu-button:hover {
-    transform: scale(1.06) translateY(-5px);
-    box-shadow: 0 12px 22px rgba(60, 80, 200, 0.25);
-    border-color: rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, #ff9900, #ff6600);
+    transform: scale(1.08) translateY(-5px);
+    box-shadow: 0 15px 25px rgba(255, 102, 0, 0.6);
+    border-color: #ffee00;
 }
 
 .menu-button:hover::before {
@@ -546,7 +530,7 @@ body.game-mode {
 }
 
 .back-button:hover {
-    background-color: #6976D0;
+    background-color: #66ccff;
 }
 
 /* Game Over */
@@ -570,18 +554,18 @@ body.game-mode {
 }
 
 .infinite-mode-option button {
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
+    background-color: #ff9900;
     color: white;
     padding: 10px 20px;
     font-size: 18px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background-color 0.3s;
 }
 
 .infinite-mode-option button:hover {
-    background: linear-gradient(135deg, #8f9ef8, #5B6EE6);
+    background-color: #ff6600;
 }
 
 /* Responsive */
@@ -594,20 +578,4 @@ body.game-mode {
     .progress-bar {
         height: 100%;
     }
-}
-
-/* Classe / fallback per effetto 'pixel' (quando non c' un font reale)
-   Usa monospace con smoothing disattivato per un look pi pixellato */
-.pixel-font, body {
-    /* se hai il font pixel, sostituisci 'PixelFallback' con 'PressStart2P' */
-    font-family: 'PressStart2P', 'PixelFallback', 'Courier New', monospace;
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeSpeed;
-}
-
-/* Leggero effetto 'pixel' usando text-shadow per definire contorni netti */
-.pixel-font.px {
-    text-shadow: 0 0 0 rgba(0,0,0,0.95), 1px 0 0 rgba(0,0,0,0.95), 0 1px 0 rgba(0,0,0,0.95), 1px 1px 0 rgba(0,0,0,0.95);
-    letter-spacing: 0.5px;
 }
