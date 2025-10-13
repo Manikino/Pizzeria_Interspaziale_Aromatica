@@ -97,8 +97,8 @@ function getShipHitbox() {
     // Riduciamo l'hitbox per rendere il gameplay pi meno punitivo
         const w = spaceship.width || 30; // Adjusted width for hitbox
         const h = spaceship.height || 40; // Height remains the same
-    const shrinkW = 0.7; // 70% della larghezza
-    const shrinkH = 0.75; // 75% dell'altezza
+    const shrinkW = 0.35; // 35% della larghezza (dimezzata rispetto al 70% precedente)
+    const shrinkH = 0.375; // 37.5% dell'altezza (dimezzata rispetto al 75% precedente)
     const offsetX = (w - w * shrinkW) / 2;
     const offsetY = (h - h * shrinkH) / 2;
     return {
@@ -132,6 +132,11 @@ function clearGameKeys() {
     gameKeys.o = false;
 }
 
+// Variabili per gestire il ridimensionamento del canvas
+let baseCanvasWidth = 800;
+let baseCanvasHeight = 600;
+let canvasScaleFactor = 1;
+
 // Inizializzazione al caricamento della pagina
 document.addEventListener('DOMContentLoaded', function() {
     // Elementi DOM
@@ -158,6 +163,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Canvas e contesto
     canvas = document.getElementById('game-canvas');
     ctx = canvas.getContext('2d');
+    
+    // Funzione per ridimensionare il canvas in base alle dimensioni della finestra
+    function resizeGameCanvas() {
+        const container = document.querySelector('.game-container');
+        if (!container) return;
+        
+        // Calcola la larghezza disponibile
+        const windowWidth = window.innerWidth;
+        const availableHeight = window.innerHeight * 0.8; // 80vh
+        
+        // Limita il canvas a 1/3 della larghezza dello schermo
+        const targetWidth = Math.min(windowWidth / 3, baseCanvasWidth);
+        
+        // Calcola il fattore di scala mantenendo le proporzioni
+        const widthScale = targetWidth / baseCanvasWidth;
+        const heightScale = availableHeight / baseCanvasHeight;
+        canvasScaleFactor = Math.min(widthScale, heightScale);
+        
+        // Imposta le nuove dimensioni del canvas
+        canvas.width = Math.round(baseCanvasWidth * canvasScaleFactor);
+        canvas.height = Math.round(baseCanvasHeight * canvasScaleFactor);
+        
+        // Centra il canvas nella game-container
+        canvas.style.margin = '0 auto';
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.width = '100%';
+        container.style.paddingRight = '0'; // Rimuovi il padding-right
+    }
+    
+    // Ridimensiona il canvas all'avvio e quando la finestra cambia dimensione
+    resizeGameCanvas();
+    window.addEventListener('resize', resizeGameCanvas);
     
     // Funzione per creare particelle sui bottoni
     function createButtonParticles(button, color) {
@@ -317,39 +355,45 @@ document.addEventListener('DOMContentLoaded', function() {
             uiCanvas.height = window.innerHeight;
         });
 
-        // Ambient spawn (low frequency)
+        // Ambient spawn (extremely high frequency)
         setInterval(() => {
-            // spawn 1-3 ambient particles randomly across screen
-            const count = 1 + Math.floor(Math.random() * 3);
+            // spawn 10-20 ambient particles randomly across screen (aumentato significativamente da 4-9)
+            const count = 10 + Math.floor(Math.random() * 11);
             for (let i = 0; i < count; i++) {
                 spawnUIParticle(Math.random() * uiCanvas.width, Math.random() * uiCanvas.height, 'ambient');
             }
-        }, 800);
+        }, 250); // Diminuito ulteriormente l'intervallo da 400ms a 250ms
 
         // Hook pointer events for hover/click (menu buttons will trigger their own via createButtonParticles)
         window.addEventListener('mousemove', (ev) => {
-            // Occasionally spawn tiny trailing dust at cursor for hover-fall feel
-            if (Math.random() < 0.12) {
+            // Spawn moltissime particelle al movimento del mouse
+            if (Math.random() < 0.5) { // Aumentato ulteriormente da 0.25 a 0.5 (il doppio)
                 const rect = document.body.getBoundingClientRect();
                 const x = ev.clientX;
                 const y = ev.clientY;
-                spawnUIParticle(x + (Math.random()-0.5)*8, y + 6 + Math.random()*6, 'hover');
+                // Genera più particelle per ogni evento di movimento
+                for (let i = 0; i < 2; i++) { // Genera 2 particelle invece di 1
+                    spawnUIParticle(x + (Math.random()-0.5)*12, y + 6 + Math.random()*8, 'hover');
+                }
             }
         });
 
         window.addEventListener('click', (ev) => {
-            // Click explosion at pointer
+            // Click explosion at pointer - ancora più spettacolare
             const x = ev.clientX;
             const y = ev.clientY;
-            for (let i = 0; i < 18; i++) {
+            for (let i = 0; i < 40; i++) { // Aumentato ulteriormente da 25 a 40
                 const angle = Math.random() * Math.PI * 2;
-                const speed = 1 + Math.random() * 3;
+                const speed = 1.5 + Math.random() * 4; // Velocità aumentata
                 const p = spawnUIParticle(x, y, 'click');
                 if (p) {
                     p.direction = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
-                    p.size = 2 + Math.random() * 3;
-                    p.life = 30 + Math.random() * 20;
-                    p.color = (Math.random() < 0.5) ? '#8f79f5' : '#ff66a3';
+                    p.size = 2.5 + Math.random() * 4; // Dimensioni aumentate
+                    p.life = 35 + Math.random() * 25; // Durata aumentata
+                    // Più variazione di colori
+                    p.color = (Math.random() < 0.33) ? '#8f79f5' : 
+                              (Math.random() < 0.5) ? '#ff66a3' : 
+                              (Math.random() < 0.5) ? '#66ffcc' : '#ffcc33';
                 }
             }
         });
@@ -367,10 +411,19 @@ document.addEventListener('DOMContentLoaded', function() {
         let p = uiParticlePool.length > 0 ? uiParticlePool.pop() : {};
         p.x = x; p.y = y; p.kind = kind;
         if (kind === 'ambient') {
-            p.size = 0.6 + Math.random() * 1.6;
-            p.direction = { x: (Math.random()-0.5) * 0.2, y: 0.2 + Math.random() * 0.6 };
-            p.life = 80 + Math.random() * 80;
-            p.color = 'rgba(255,255,255,' + (0.05 + Math.random()*0.25) + ')';
+            p.size = 1.0 + Math.random() * 2.2; // Dimensioni aumentate
+            p.direction = { x: (Math.random()-0.5) * 0.4, y: 0.3 + Math.random() * 0.8 }; // Movimento più evidente
+            p.life = 100 + Math.random() * 120; // Durata aumentata
+            // Colori più vari e luminosi
+            if (Math.random() < 0.7) {
+                p.color = 'rgba(255,255,255,' + (0.1 + Math.random()*0.4) + ')';
+            } else if (Math.random() < 0.5) {
+                p.color = 'rgba(180,180,255,' + (0.1 + Math.random()*0.3) + ')';
+            } else if (Math.random() < 0.5) {
+                p.color = 'rgba(255,220,180,' + (0.1 + Math.random()*0.3) + ')';
+            } else {
+                p.color = 'rgba(180,255,220,' + (0.1 + Math.random()*0.3) + ')';
+            }
         } else if (kind === 'hover') {
             p.size = 1 + Math.random() * 2;
             p.direction = { x: (Math.random()-0.5) * 0.6, y: 0.6 + Math.random() * 1.2 };
@@ -627,15 +680,15 @@ const images = {
 // Inizializzazione del sistema di stelle (super ottimizzato)
 function initStars() {
     stars = [];
-    // Ridotto a 35 stelle per performance massime
-    for (let i = 0; i < 35; i++) {
+    // Aumentato significativamente il numero di stelle da 35 a 120
+    for (let i = 0; i < 120; i++) {
         stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            size: Math.random() * 2 + 0.5,
-            speed: Math.random() * 3 + 1,
-            brightness: Math.random() * 0.8 + 0.2,
-            twinkle: Math.random() * 0.02 + 0.005,
+            size: Math.random() * 2.5 + 0.8, // Dimensioni leggermente aumentate
+            speed: Math.random() * 3.5 + 1, // Velocità leggermente aumentata
+            brightness: Math.random() * 0.9 + 0.3, // Luminosità aumentata
+            twinkle: Math.random() * 0.03 + 0.008, // Scintillio più evidente
             twinkleCounter: 0 // Contatore per ottimizzare lo scintillio
         });
     }
@@ -1050,19 +1103,19 @@ function updateParticles() {
         }
         // NON generare particelle quando ci si muove verso il basso
         
-        // Particelle propulsore più spettacolari e numerose
-        if (particles.length < 120) { // Aumentato ulteriormente il limite particelle
-            // Più particelle quando ci si muove intensamente
-            const particleCount = Math.floor(Math.random() * 8) + 5; // 5-12 particelle per frame
+        // Particelle propulsore estremamente spettacolari e numerose
+        if (particles.length < 200) { // Aumentato ulteriormente il limite particelle da 120 a 200
+            // Molte più particelle quando ci si muove intensamente
+            const particleCount = Math.floor(Math.random() * 12) + 8; // 8-19 particelle per frame (aumentato da 5-12)
             for (let i = 0; i < particleCount; i++) {
-                const spreadX = (Math.random() - 0.5) * 20; // Spread orizzontale più ampio
-                const spreadY = (Math.random() - 0.5) * 8; // Spread verticale
+                const spreadX = (Math.random() - 0.5) * 25; // Spread orizzontale ancora più ampio (da 20 a 25)
+                const spreadY = (Math.random() - 0.5) * 12; // Spread verticale aumentato (da 8 a 12)
                 particles.push(createParticle(
                     emitX + spreadX, 
                     emitY + spreadY,
                     { 
-                        x: dirX + (Math.random() - 0.5) * 0.6, 
-                        y: dirY + Math.random() * 0.8 + 0.5 
+                        x: dirX + (Math.random() - 0.5) * 0.8, // Aumentata variazione velocità X (da 0.6 a 0.8)
+                        y: dirY + Math.random() * 1.0 + 0.6  // Aumentata velocità Y (da 0.8+0.5 a 1.0+0.6)
                     },
                     'thruster'
                 ));
@@ -1159,18 +1212,41 @@ function performGameOverUI() {
 function updateShipExplosionAnimation() {
     const now = Date.now();
     const t = Math.min(1, (now - shipExplosionState.start) / shipExplosionState.duration);
-    // genera particelle
+    // genera particelle molto più spettacolari
     if (t < 0.8) {
-        for (let i = 0; i < 12; i++) {
-            particles.push(createParticle(shipExplosionState.x, shipExplosionState.y, null, 'shipExplosion'));
+        for (let i = 0; i < 25; i++) { // Aumentato da 12 a 25 particelle
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 20; // Distribuzione iniziale
+            const particle = createParticle(
+                shipExplosionState.x + Math.cos(angle) * distance,
+                shipExplosionState.y + Math.sin(angle) * distance,
+                {
+                    x: Math.cos(angle) * (Math.random() * 2 + 1),
+                    y: Math.sin(angle) * (Math.random() * 2 + 1)
+                },
+                'shipExplosion'
+            );
+            // Personalizza le particelle per un effetto più drammatico
+            particle.size = Math.random() * 6 + 4; // Particelle più grandi
+            particle.life = Math.random() * 45 + 30; // Durata maggiore
+            particle.color = Math.random() < 0.4 ? '#ff3300' : (Math.random() < 0.6 ? '#ffaa00' : '#ffff00');
+            particle.intensity = Math.random() * 0.9 + 0.8; // Più luminose
+            particles.push(particle);
         }
     }
     shipExplosionState.r = shipExplosionState.maxR * (0.6 + 0.4 * easeOutCubic(t));
-    // breve flash bianco al picco
-    if (t < 0.2) {
+    // Flash bianco più intenso e prolungato al picco
+    if (t < 0.3) { // Durata aumentata da 0.2 a 0.3
         ctx.save();
-        ctx.globalAlpha = 0.25 * (1 - t / 0.2);
+        ctx.globalAlpha = 0.45 * (1 - t / 0.3); // Intensità aumentata da 0.25 a 0.45
         ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        // Aggiungi un secondo flash colorato per effetto drammatico
+        ctx.save();
+        ctx.globalAlpha = 0.25 * (1 - t / 0.3);
+        ctx.fillStyle = '#ff5500';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
     }
@@ -1370,9 +1446,10 @@ function updateSpaceshipPosition() {
         spaceship.velocityY *= spaceship.friction;
     }
     
-    // Aggiornamento della posizione
-    spaceship.x += spaceship.velocityX;
-    spaceship.y += spaceship.velocityY;
+    // Aggiornamento della posizione - scalato in base al fattore di scala del canvas
+    // per mantenere la stessa velocità di gioco indipendentemente dalla dimensione del canvas
+    spaceship.x += spaceship.velocityX * (canvasScaleFactor ? 1 : 1);
+    spaceship.y += spaceship.velocityY * (canvasScaleFactor ? 1 : 1);
     
     // Controllo dei limiti dello schermo
     if (spaceship.x < 0) {
@@ -1628,12 +1705,13 @@ function checkCollisions() {
     // Collisione tra navicella e meteoriti
     for (let i = 0; i < meteorites.length; i++) {
         const meteorite = meteorites[i];
+        const shipBox = getShipHitbox();
         
         if (
-            spaceship.x < meteorite.x + meteorite.width &&
-            spaceship.x + spaceship.width > meteorite.x &&
-            spaceship.y < meteorite.y + meteorite.height &&
-            spaceship.y + spaceship.height > meteorite.y
+            shipBox.x < meteorite.x + meteorite.width &&
+            shipBox.x + shipBox.width > meteorite.x &&
+            shipBox.y < meteorite.y + meteorite.height &&
+            shipBox.y + shipBox.height > meteorite.y
         ) {
             const hasTimedShield = spaceship.shieldUntil > Date.now();
             const hasPermanentShield = spaceship.permanentShields > 0;
@@ -1670,9 +1748,16 @@ function checkCollisions() {
 
 // Esplosione meteorite: genera particelle radiali in base alla dimensione
 function spawnExplosion(x, y, size) {
-    const count = Math.min(70, Math.max(25, Math.floor(size * 2.0)));
+    const count = Math.min(120, Math.max(40, Math.floor(size * 3.5)));
     for (let k = 0; k < count; k++) {
-        particles.push(createParticle(x, y, null, 'explosion'));
+        const particle = createParticle(x, y, null, 'explosion');
+        // Aumenta dimensione e durata delle particelle
+        particle.size = Math.random() * 4.5 + 3;
+        particle.life = Math.random() * 35 + 25;
+        // Aggiungi variazione di colore per effetto più spettacolare
+        particle.color = Math.random() < 0.6 ? '#ffbb33' : (Math.random() < 0.5 ? '#ffdd55' : '#ff6622');
+        particle.intensity = Math.random() * 0.8 + 0.6;
+        particles.push(particle);
     }
 }
 
