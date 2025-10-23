@@ -173,8 +173,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const windowWidth = window.innerWidth;
         const availableHeight = window.innerHeight * 0.8; // 80vh
         
-        // Limita il canvas a 1/3 della larghezza dello schermo
-        const targetWidth = Math.min(windowWidth / 3, baseCanvasWidth);
+        // Limita il canvas a 2/3 della larghezza dello schermo
+        const targetWidth = Math.min(windowWidth * 0.66, baseCanvasWidth);
         
         // Calcola il fattore di scala mantenendo le proporzioni
         const widthScale = targetWidth / baseCanvasWidth;
@@ -680,8 +680,9 @@ const images = {
 // Inizializzazione del sistema di stelle (super ottimizzato)
 function initStars() {
     stars = [];
-    // Aumentato significativamente il numero di stelle da 35 a 120
-    for (let i = 0; i < 120; i++) {
+    // Ridotto il numero di stelle da 120 a 60
+    const starCount = Math.floor(60 * (window.innerWidth / 1920)); // Scala in base alla larghezza dello schermo
+    for (let i = 0; i < starCount; i++) {
         stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -918,11 +919,22 @@ function getPlanetColor(level) {
     return colors[(level - 1) % colors.length];
 }
 
-// Loop di gioco ottimizzato con requestAnimationFrame
+// Loop di gioco ottimizzato con requestAnimationFrame e frame skipping
 function startGameLoop() {
-    function loop() {
+    let lastTime = 0;
+    const targetFPS = 60;
+    const frameInterval = 1000 / targetFPS;
+    
+    function loop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const elapsed = timestamp - lastTime;
+        
         if (gameActive) {
-            gameUpdate();
+            // Aggiorna il gioco solo se è passato abbastanza tempo
+            if (elapsed > frameInterval) {
+                gameUpdate();
+                lastTime = timestamp - (elapsed % frameInterval);
+            }
             gameLoop = requestAnimationFrame(loop);
         }
     }
@@ -998,7 +1010,10 @@ function updateUI() {
 // Generazione dei meteoriti
 function generateMeteorites() {
     const countFactor = currentLevel <= 3 ? 3 : 2; // crescita più dolce dal livello 4
-    const meteoritesCount = 5 + (currentLevel * countFactor);
+    
+    // Scala il numero di meteoriti in base alla dimensione della finestra
+    const screenSizeFactor = window.innerWidth / 1920;
+    const meteoritesCount = Math.floor((5 + (currentLevel * countFactor)) * screenSizeFactor);
     
     for (let i = 0; i < meteoritesCount; i++) {
         const size = Math.random() * 30 + 35; // Dimensione tra 35 e 65
@@ -1034,6 +1049,8 @@ function createParticle(x, y, direction, type = 'thruster') {
     particle.x = x;
     particle.y = y;
     particle.type = type;
+    particle.createdAt = Date.now(); // Timestamp di creazione
+    particle.maxLifeTime = 3000; // Durata massima in millisecondi (3 secondi)
     
     if (type === 'thruster') {
         particle.size = Math.random() * 4 + 1.5; // Dimensioni più variabili
@@ -1065,14 +1082,16 @@ function createParticle(x, y, direction, type = 'thruster') {
 
 // Funzione per aggiornare le particelle
 function updateParticles() {
+    const currentTime = Date.now();
     for (let i = particles.length - 1; i >= 0; i--) {
         particles[i].x += particles[i].direction.x * particles[i].speed;
         particles[i].y += particles[i].direction.y * particles[i].speed;
         particles[i].life--;
         particles[i].size *= 0.95; // Riduzione graduale della dimensione
         
-        // Rimuovi particelle morte e restituiscile al pool
-        if (particles[i].life <= 0 || particles[i].size < 0.5) {
+        // Rimuovi particelle morte, troppo vecchie o troppo piccole e restituiscile al pool
+        if (particles[i].life <= 0 || particles[i].size < 0.5 || 
+            (currentTime - particles[i].createdAt > particles[i].maxLifeTime)) {
             particlePool.push(particles[i]); // Restituisce al pool
             particles.splice(i, 1);
         }
@@ -1103,10 +1122,10 @@ function updateParticles() {
         }
         // NON generare particelle quando ci si muove verso il basso
         
-        // Particelle propulsore estremamente spettacolari e numerose
-        if (particles.length < 200) { // Aumentato ulteriormente il limite particelle da 120 a 200
-            // Molte più particelle quando ci si muove intensamente
-            const particleCount = Math.floor(Math.random() * 12) + 8; // 8-19 particelle per frame (aumentato da 5-12)
+        // Particelle propulsore ottimizzate per evitare lag
+        if (particles.length < 80) { // Ridotto drasticamente il limite particelle da 200 a 80
+            // Ridotto il numero di particelle per migliorare le prestazioni
+            const particleCount = Math.floor(Math.random() * 5) + 3; // 3-7 particelle per frame (ridotto da 8-19)
             for (let i = 0; i < particleCount; i++) {
                 const spreadX = (Math.random() - 0.5) * 25; // Spread orizzontale ancora più ampio (da 20 a 25)
                 const spreadY = (Math.random() - 0.5) * 12; // Spread verticale aumentato (da 8 a 12)
@@ -2002,12 +2021,8 @@ if (animationState === 'landing') {
         ctx.drawImage(images.meteorite, -meteorite.width/2, -meteorite.height/2, meteorite.width, meteorite.height);
     ctx.restore();
     }
-    
-    // Pizza obiettivo (in base al livello) - Solo durante il gameplay
-    if (animationState === 'game') {
-        const pizzaImage = currentLevel === 1 ? images.pizza1 : (currentLevel === 2 ? images.pizza2 : images.pizza3);
-        ctx.drawImage(pizzaImage, canvas.width - 50, 10, 40, 40);
-    }
+       
+    // Rimossa visualizzazione pizza durante il gameplay
 
     // Disegna power-up sopra tutto (bagliore)
     for (const p of powerups) {
@@ -2106,7 +2121,9 @@ function resetBackground() {
 
 // Fattore di velocità corrente (modalità infinita + spazio per accelerare)
 function getSpeedFactor() {
-    let factor = isInfiniteMode ? infiniteSpeedMultiplier : 1;
+    // Scala la velocità in base alla dimensione della finestra (1920px è la dimensione di riferimento a schermo intero)
+    const screenSizeFactor = window.innerWidth / 1920;
+    let factor = (isInfiniteMode ? infiniteSpeedMultiplier : 1) * screenSizeFactor;
     if (gameKeys.space && isInfiniteMode) factor *= 3;
     return factor;
 }
@@ -2173,21 +2190,51 @@ function showLevelCompleteScreen() {
     gameActive = false;
     if (gameLoop) cancelAnimationFrame(gameLoop);
     
-// Mostra la schermata di congratulazioni
-    document.getElementById('game-area').classList.add('hidden');
+    // Mostra la schermata di congratulazioni
+    const gameArea = document.getElementById('game-area');
+    if (gameArea) gameArea.classList.add('hidden');
+    
+    const levelComplete = document.getElementById('level-complete');
+    if (!levelComplete) return;
+    
+    // Resetta e imposta le classi di base
+    levelComplete.className = 'game-section';
+    levelComplete.classList.add('level-' + lastCompletedLevel, 'bg-image-mode', 'bg-cover');
+    levelComplete.style.position = 'fixed';
+    levelComplete.style.top = '0';
+    levelComplete.style.left = '0';
+    levelComplete.style.width = '100%';
+    levelComplete.style.height = '100%';
+    
+    // Imposta lo sfondo corretto per il livello
+    levelComplete.style.backgroundImage = `url('img/bg-level${lastCompletedLevel}.svg')`;
+    
+    // Mostra la sezione e aggiorna il testo del livello
     showSection('level-complete');
-    document.getElementById('completed-level').textContent = lastCompletedLevel;
-
-    // Imposta background di vittoria per livello
-    const levelCompleteSection = document.getElementById('level-complete');
-    levelCompleteSection.className = 'game-section level-' + lastCompletedLevel;
-    levelCompleteSection.classList.add('bg-image-mode', 'bg-cover');
-    // Usa immagine pizzeria di fallback per evitare 404 se Win_X non esiste
-    levelCompleteSection.style.backgroundImage = `url('img/pizzeria.svg')`;
+    const completedLevelElement = document.getElementById('completed-level');
+    if (completedLevelElement) {
+        const consegnaNumero = ['prima', 'seconda', 'terza', 'quarta', 'quinta', 'sesta'];
+        completedLevelElement.textContent = `Hai completato la ${consegnaNumero[lastCompletedLevel - 1]} consegna!`;
+    }
 
     // Gestione pulsanti a fine livello
     const nextBtn = document.getElementById('next-level-btn');
     const backBtn = document.getElementById('back-to-levels-btn');
+    
+    // Applica stili personalizzati ai pulsanti
+    if (nextBtn) {
+        nextBtn.classList.add('menu-button', 'menu-play');
+        nextBtn.style.backgroundColor = '#4CAF50';
+        nextBtn.style.color = '#ffffff';
+        nextBtn.style.fontWeight = 'bold';
+    }
+    
+    if (backBtn) {
+        backBtn.classList.add('menu-button', 'menu-docs');
+        backBtn.style.backgroundColor = '#2196F3';
+        backBtn.style.color = '#ffffff';
+        backBtn.style.fontWeight = 'bold';
+    }
     if (lastCompletedLevel >= 6) {
         if (nextBtn) nextBtn.style.display = 'none';
         if (backBtn) {
@@ -2308,34 +2355,128 @@ function victory() {
     clearGameKeys();
     
     // Aggiornamento dell'interfaccia di game over con messaggio di vittoria
-    document.getElementById('final-score').textContent = score;
-    document.getElementById('final-level').textContent = "Completato!";
+    if (isInfiniteMode) {
+        document.getElementById('final-score').textContent = score;
+        document.getElementById('final-level').textContent = "Completato!";
+    } else {
+        document.getElementById('final-score').textContent = '';
+        document.getElementById('final-level').textContent = '';
+    }
     
     // Visualizzazione della schermata di game over
     document.getElementById('game-area').classList.add('hidden');
     showSection('game-over');
 }
 
+let isPaused = false;
+let isCountingDown = false;
+
 // Pausa del gioco
 function togglePause() {
-    gameActive = !gameActive;
-    
-    if (!gameActive) {
-        // Logica per la pausa
+    const pausePanel = document.getElementById('pause-panel');
+    if (!isPaused) {
+        isPaused = true;
+        gameActive = false;
         if (gameLoop) cancelAnimationFrame(gameLoop);
-    } else {
-        // Logica per la ripresa
-        startGameLoop();
+        
+        // Mostra il pannello di pausa se non esiste
+        if (!pausePanel) {
+            const newPausePanel = document.createElement('div');
+            newPausePanel.id = 'pause-panel';
+            newPausePanel.style.cssText = `
+                display: block;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: rgba(0, 0, 0, 0.8);
+                padding: 20px;
+                border-radius: 15px;
+                border-radius: 10px;
+                text-align: center;
+                color: white;
+                z-index: 1000;
+            `;
+            
+            newPausePanel.innerHTML = `
+                <h2 style="margin-bottom: 20px; color: #fff;">Gioco in pausa</h2>
+                <button id="resume-btn" class="menu-button menu-play" style="width: 220px; margin: 10px; font-size: 0.8rem;">Riprendi</button>
+                <button id="menu-btn" class="menu-button menu-docs" style="width: 220px; margin: 10px; font-size: 0.8rem;">Torna al menù</button>
+            `;
+            
+            document.getElementById('game-area').appendChild(newPausePanel);
+            
+            // Aggiungi il countdown panel se non esiste
+            const countdownPanel = document.createElement('div');
+            countdownPanel.id = 'countdown-panel';
+            countdownPanel.style.cssText = `
+                display: none;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 48px;
+                color: white;
+                z-index: 1000;
+            `;
+            document.getElementById('game-area').appendChild(countdownPanel);
+            
+            // Aggiungi gli event listener ai bottoni
+            document.getElementById('resume-btn').onclick = startCountdown;
+            document.getElementById('menu-btn').onclick = () => {
+                isPaused = false;
+                const pausePanel = document.getElementById('pause-panel');
+                if (pausePanel) pausePanel.style.display = 'none';
+                backToMenu();
+            };
+        } else {
+            pausePanel.style.display = 'block';
+        }
+    }
+}
+
+function startCountdown() {
+    const pausePanel = document.getElementById('pause-panel');
+    const countdownPanel = document.getElementById('countdown-panel');
+    
+    if (pausePanel) pausePanel.style.display = 'none';
+    if (countdownPanel) {
+        isCountingDown = true;
+        let count = 3;
+        
+        function updateCount() {
+            if (count > 0) {
+                countdownPanel.style.display = 'block';
+                countdownPanel.textContent = count;
+                count--;
+                setTimeout(updateCount, 1000);
+            } else {
+                countdownPanel.style.display = 'none';
+                isPaused = false;
+                isCountingDown = false;
+                gameActive = true;
+                startGameLoop();
+            }
+        }
+        
+        updateCount();
     }
 }
 
 // Gestione degli input da tastiera
 function handleKeyDown(e) {
-    // Consenti solo ESC quando l'input non è abilitato
-    if (!inputEnabled) {
-        if (e.key === 'Escape') {
+    // Gestisci ESC per il menu di pausa
+    if (e.key === 'Escape') {
+        if (isPaused) {
+            startCountdown();
+        } else if (inputEnabled) {
             togglePause();
         }
+        return;
+    }
+    
+    // Non processare altri tasti se l'input non è abilitato
+    if (!inputEnabled) {
         return;
     }
     

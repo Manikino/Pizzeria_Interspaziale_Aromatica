@@ -403,51 +403,48 @@ body.game-mode {
 
 #level-complete {
     text-align: center;
-    padding: 20px;
-    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
     position: relative;
-    overflow: hidden;
 }
 
 #level-complete::before {
-    content: "";
+    content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-size: cover;
-    background-position: center;
-    opacity: 0.3;
     z-index: -1;
+    opacity: 0.3;
 }
 
-#level-complete.level-1::before {
+#level-complete.level-1 {
     background-image: url('../img/bg-level1.svg');
 }
 
-#level-complete.level-2::before {
+#level-complete.level-2 {
     background-image: url('../img/bg-level2.svg');
 }
 
-#level-complete.level-3::before {
+#level-complete.level-3 {
     background-image: url('../img/bg-level3.svg');
 }
 
-#level-complete.level-4::before {
+#level-complete.level-4 {
     background-image: url('../img/bg-level4.svg');
 }
 
-#level-complete.level-5::before {
+#level-complete.level-5 {
     background-image: url('../img/bg-level5.svg');
 }
 
-#level-complete.level-6::before {
+#level-complete.level-6 {
     background-image: url('../img/bg-level6.svg');
 }
 
-#level-complete.level-infinite::before {
-    background-image: url('../img/bg-infinite.svg');
+#level-complete.level-infinite {
+    background-image: url('../img/bg-level6.svg');
 }
 
 /* Quando si usa un background immagine per intera pagina vittoria/sconfitta */
@@ -536,7 +533,7 @@ body.game-mode {
     position: absolute;
     bottom: 10px;
     right: 10px;
-    color: #5c4bf9;
+    color: #bd54f5;
     font-weight: bold;
     font-size: 0.9rem;
 }
