@@ -8,10 +8,13 @@ let progress = 0;
 let lastCompletedLevel = 0;
 let pizzaTypes = ["Margherita", "Pepperoni", "Super Spaziale", "Quattro Stagioni", "Capricciosa", "Galattica", "Infinita"];
 let inputEnabled = false; // input abilitato solo durante il gameplay
+let canMove = false; // flag per controllare se il player può muoversi attivamente
 let unlockedLevels = 1; // Solo il primo livello è sbloccato all'inizio
 let isInfiniteMode = false; // Modalità infinita
 let maxBullets = 20; // Numero massimo di proiettili disponibili
 let remainingBullets = maxBullets; // Proiettili rimanenti
+
+// Variabili per la sequenza Konami e il dialogo segreto sono definite in secret-dialog.js
 
 // Sistema di animazioni
 let animationState = 'none'; // 'takeoff', 'landing', 'game', 'none'
@@ -41,6 +44,42 @@ let particlePool = []; // Pool per riutilizzare le particelle
 
 // Timeout per spawn ritardato dei meteoriti dopo il decollo
 let meteorSpawnTimeout = null;
+let meteorSpawnPaused = false;
+let playerHasMoved = false;
+
+// Funzioni per controllare lo spawn dei meteoriti e lo stato del player
+function pauseMeteorSpawn() {
+    meteorSpawnPaused = true;
+    if (meteorSpawnTimeout) {
+        clearTimeout(meteorSpawnTimeout);
+        meteorSpawnTimeout = null;
+    }
+}
+
+function resumeMeteorSpawn() {
+    console.log("DEBUG - resumeMeteorSpawn chiamata");
+    meteorSpawnPaused = false;
+    // Abilita esplicitamente il movimento del giocatore
+    enablePlayerMovement();
+    console.log("DEBUG - Stato dopo resumeMeteorSpawn: meteorSpawnPaused =", meteorSpawnPaused, "canMove =", canMove);
+}
+
+// Sistema di eventi per gestire le transizioni di stato del player
+function enablePlayerMovement() {
+    console.log("DEBUG - enablePlayerMovement chiamata");
+    canMove = true;
+    inputEnabled = true;
+    // Inizia a riempire la barra di progresso quando il movimento è abilitato
+    resumeProgressFill();
+    console.log("DEBUG - Movimento abilitato: canMove =", canMove, "inputEnabled =", inputEnabled);
+}
+
+function disablePlayerMovement() {
+    console.log("DEBUG - disablePlayerMovement chiamata");
+    canMove = false;
+    // Non disabilitiamo inputEnabled per permettere altre azioni come sparare
+    console.log("DEBUG - Movimento disabilitato: canMove =", canMove, "inputEnabled =", inputEnabled);
+}
 
 // Power-up e gestione spawn
 let powerups = []; // {x,y,type,vy,rot}
@@ -84,7 +123,7 @@ let spaceship = {
     shockwaves: [], // onde d'urto (burst)
     lastShockwave: 0,
     shieldUntil: 0, // timestamp ms per scudo temporaneo
-    permanentShields: 0, // numero di scudi permanenti (max 5)
+    permanentShields: 0, // numero di scudi permanenti (max 10)
     shieldGlow: 0, // intensità bagliore scudo
     pickupAnimUntil: 0, // timestamp ms per breve animazione pickup
     // Dash properties
@@ -575,7 +614,7 @@ function checkPowerupCollisions() {
             } else if (p.type === 'shield_timed') {
                 spaceship.shieldUntil = Date.now() + 5000; // 5 secondi
             } else if (p.type === 'shield_once') {
-                if (spaceship.permanentShields < 5) { // Massimo 5 scudi permanenti
+                if (spaceship.permanentShields < 10) { // Massimo 10 scudi permanenti
                     spaceship.permanentShields++;
                 }
             }
@@ -755,9 +794,7 @@ images.fire.src = 'img/fire.svg';
     // Icona scudo per UI (SVG inline blu)
     images.shieldIcon.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="%2300bfff"/><stop offset="100%" stop-color="%230066cc"/></linearGradient></defs><path d="M32 4l22 8v14c0 16-10 26-22 34C20 52 10 42 10 26V12l22-8z" fill="url(%23g)" stroke="%230099ff" stroke-width="2"/></svg>';
     
-    // Icona scudo temporaneo (SVG inline viola)
-    images.tempShieldIcon = new Image();
-    images.tempShieldIcon.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><linearGradient id="g2" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="%23ff00ff"/><stop offset="100%" stop-color="%23cc00cc"/></linearGradient></defs><path d="M32 4l22 8v14c0 16-10 26-22 34C20 52 10 42 10 26V12l22-8z" fill="url(%23g2)" stroke="%23ff66ff" stroke-width="2"/><path d="M32 12l12 4v8c0 10-6 16-12 20C24 40 18 34 18 24v-8l14-4z" fill="none" stroke="%23ffffff" stroke-width="1" stroke-dasharray="4,2"/></svg>';
+
     
     // Pizze per i diversi livelli
     images.pizza1.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="15" fill="%23FFCC66" stroke="%23CC9933" stroke-width="1"/><circle cx="15" cy="15" r="12" fill="%23FF9933"/><circle cx="10" cy="10" r="2" fill="%23CC3300"/><circle cx="20" cy="20" r="2" fill="%23CC3300"/><circle cx="15" cy="18" r="2" fill="%23009900"/></svg>';
@@ -995,7 +1032,7 @@ function updateUI() {
     }
     
     // Indicatori scudi permanenti
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 10; i++) {
         const shieldIndicator = document.getElementById(`shield-indicator-${i}`);
         if (shieldIndicator) {
             const active = (i <= spaceship.permanentShields);
@@ -1009,6 +1046,15 @@ function updateUI() {
 
 // Generazione dei meteoriti
 function generateMeteorites() {
+    // Debug: stampa lo stato delle variabili di controllo
+    console.log("DEBUG - generateMeteorites chiamata: meteorSpawnPaused =", meteorSpawnPaused, "canMove =", canMove, "dialogActive =", dialogActive);
+    
+    // Non generare meteoriti se lo spawn è in pausa o il player non può muoversi
+    if (meteorSpawnPaused || !canMove) {
+        console.log("DEBUG - Generazione meteoriti bloccata!");
+        return;
+    }
+    
     const countFactor = currentLevel <= 3 ? 3 : 2; // crescita più dolce dal livello 4
     
     // Scala il numero di meteoriti in base alla dimensione della finestra
@@ -1309,12 +1355,16 @@ function updateTakeoffAnimation() {
 // Fine animazione
 if (animationProgress >= 1) {
         animationState = 'game';
-        // Pulisci i tasti ed abilita input da qui in poi
+        // Pulisci i tasti ma NON abilitare ancora l'input
         clearGameKeys();
-        inputEnabled = true;
+        inputEnabled = false; // Manteniamo l'input disabilitato fino alla fine del dialogo
+        canMove = false; // Disabilita il movimento del player durante il dialogo
         gameStartTime = Date.now();
         lastAmmoSpawn = gameStartTime;
         lastTimedShieldSpawn = gameStartTime;
+        
+        // Avvia la sequenza di dialogo
+        startDialogAfterTakeoff();
         // Posizionamento finale della navicella per il gameplay
         spaceship.x = canvas.width / 2 - spaceship.width / 2;
         spaceship.y = canvas.height - spaceship.height - 20;
@@ -1322,14 +1372,8 @@ if (animationProgress >= 1) {
         spaceship.height = 40;
         spaceship.thrusterActive = false;
         
-        // Genera i meteoriti con 2s di ritardo dopo che il player può muoversi
-        if (meteorSpawnTimeout) { clearTimeout(meteorSpawnTimeout); }
-        meteorSpawnTimeout = setTimeout(() => {
-            // Evita spawn se non siamo più in gioco
-            if (animationState === 'game' && gameActive) {
-                generateMeteorites();
-            }
-        }, 2000);
+        // Lo spawn dei meteoriti verrà gestito dalla funzione resumeMeteorSpawn()
+        // che sarà chiamata alla fine del dialogo
     }
 }
 
@@ -1396,8 +1440,20 @@ const radius = planet.size / 2;
     }
 }
 
+// Variabile per controllare se il progresso è in pausa
+let progressPaused = false;
+
 // Aggiornamento del progresso basato sul tempo (20% più veloce)
 function updateProgressWithTime() {
+    // Se il progresso è in pausa, non aggiornare.
+    // Se c'è un dialogo attivo, permetti l'aggiornamento SOLO se il player può muoversi (canMove)
+    if (progressPaused) {
+        return;
+    }
+    if (dialogSystem && dialogSystem.active && !canMove) {
+        return;
+    }
+    
     // Incrementa il progresso di una piccola quantità ad ogni frame
     // Velocità aumentata del 25% per ridurre la distanza del 20%
     
@@ -1416,6 +1472,16 @@ function updateProgressWithTime() {
     
     // Aggiorna l'interfaccia utente con animazione fluida
     updateUI();
+}
+
+// Funzione per mettere in pausa il progresso
+function pauseProgressFill() {
+    progressPaused = true;
+}
+
+// Funzione per riprendere il progresso
+function resumeProgressFill() {
+    progressPaused = false;
 }
 
 // Aggiornamento della posizione della navicella con fisica realistica
@@ -1444,6 +1510,19 @@ function updateSpaceshipPosition() {
     }
     if (gameKeys.down) {
         forceY = spaceship.acceleration * 0.7; // Movimento verso il basso più lento
+    }
+    
+    // Controlla se il giocatore ha iniziato a muoversi
+    if (!playerHasMoved && (gameKeys.left || gameKeys.right || gameKeys.up || gameKeys.down)) {
+        playerHasMoved = true;
+        // Genera i meteoriti con un breve ritardo dopo il primo movimento
+        if (meteorSpawnTimeout) { clearTimeout(meteorSpawnTimeout); }
+        meteorSpawnTimeout = setTimeout(() => {
+            // Evita spawn se non siamo più in gioco o se lo spawn è in pausa
+            if (animationState === 'game' && gameActive && !meteorSpawnPaused) {
+                generateMeteorites();
+            }
+        }, 500);
     }
     
     // Applicazione delle forze alla velocità
@@ -1862,14 +1941,29 @@ function drawGame() {
     // Effetto glow scudo e pickup
     const shieldActive = (spaceship.shieldUntil > Date.now()) || spaceship.oneHitShield;
     if (shieldActive) {
+        const timeLeft = spaceship.shieldUntil - Date.now();
+        const isBlinking = timeLeft > 0 && timeLeft <= 2000; // Last 2 seconds
+        const shouldShowBlue = isBlinking && Math.floor(timeLeft / 333) % 2 === 0; // Blink every 1/3 second for 6 blinks total
+
+        // Update canvas border color
+        const canvas = document.getElementById('game-canvas');
+        if (canvas) {
+            canvas.classList.toggle('shield-active', shieldActive && !shouldShowBlue);
+        }
+
         const cx = spaceship.x + spaceship.width/2;
         const cy = spaceship.y + spaceship.height/2;
         const radius = Math.max(spaceship.width, spaceship.height) * 0.7;
         const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200);
         ctx.save();
         const grad = ctx.createRadialGradient(cx, cy, radius*0.6, cx, cy, radius*1.2);
-        grad.addColorStop(0, 'rgba(0,180,255,0.25)');
-        grad.addColorStop(1, 'rgba(0,120,255,0)');
+        if (shouldShowBlue) {
+            grad.addColorStop(0, 'rgba(0,180,255,0.25)');
+            grad.addColorStop(1, 'rgba(0,120,255,0)');
+        } else {
+            grad.addColorStop(0, 'rgba(255,105,180,0.25)');
+            grad.addColorStop(1, 'rgba(255,20,147,0)');
+        }
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(cx, cy, radius * (1 + 0.05*pulse), 0, Math.PI*2);

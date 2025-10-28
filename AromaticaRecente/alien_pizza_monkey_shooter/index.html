@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pizzeria Interspaziale Aromatica</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/secret-dialog.js" defer></script>
+    <script src="js/dialog.js" defer></script>
 </head>
 <body>
     <div class="container">
@@ -63,6 +65,11 @@
         <div id="game-area" class="game-section hidden">
 <div class="game-container">
                 <canvas id="game-canvas" width="800" height="600"></canvas>
+                <div id="dialog-box" class="dialog-hidden">
+                    <div class="dialog-content">
+                        <p id="dialog-text"></p>
+                    </div>
+                </div>
                 <div id="temp-shield-indicator" class="shield-indicator temp-shield" title="Scudo temporaneo attivo"></div>
                 <div id="shield-container" class="shield-container">
                     <div id="shield-indicator-1" class="shield-indicator" title="Scudo permanente 1"></div>
@@ -97,6 +104,19 @@
                 <button id="back-from-credits" class="back-button">Torna al Menu</button>
             </div>
         </div>
+        
+        <!-- Dialogo Segreto -->
+        <div class="secret-dialog" style="display: none;">
+            <div class="dialog-box">
+                <div class="dialog-text-container">
+                    <div class="dialog-text"></div>
+                </div>
+                <div class="dialog-continue-hint">Premi Spazio o Invio per continuare...</div>
+            </div>
+        </div>
+        
+        <!-- Overlay per oscuramento -->
+        <div class="dark-overlay" style="display: none;"></div>
 
         <!-- Game Over -->
         <div id="game-over" class="game-section hidden">
