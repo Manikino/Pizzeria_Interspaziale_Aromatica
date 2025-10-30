@@ -84,9 +84,8 @@ function endSecretDialog() {
 
 // === MOSTRA TESTO LETTERA PER LETTERA ===
 function typeDialogText(dialogObj) {
-    const dialogElement = document.querySelector('.secret-dialog');
-    const dialogText = dialogElement.querySelector('.dialog-text');
-    const dialogContinueHint = dialogElement.querySelector('.dialog-continue-hint');
+    const dialogText = document.querySelector('.dialog-text');
+    const dialogContinueHint = document.querySelector('.dialog-continue-hint');
     let index = 0;
 
     dialogContinueHint.style.display = 'none';
@@ -126,8 +125,7 @@ function advanceDialog() {
     if (typingInProgress || inputLocked) return;
     inputLocked = true;
 
-    const dialogElement = document.querySelector('.secret-dialog');
-    const dialogText = dialogElement.querySelector('.dialog-text');
+    const dialogText = document.querySelector('.dialog-text');
 
     // Primo dialogo speciale
     if (currentDialogIndex === 0 && dialogText.children.length === 0) {

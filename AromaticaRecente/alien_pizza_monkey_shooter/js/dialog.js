@@ -10,6 +10,53 @@ let dialogSystem = {
     progressBarInterval: null, // Intervallo per aggiornare la barra di progressione
     messageQueue: [], // Coda dei dialoghi da mostrare
     isPlayerResponse: false, // Flag per indicare se il messaggio corrente è una risposta del player
+    timeouts: [], // Array per tenere traccia di tutti i timeout attivi
+
+    // Metodo per forzare la conclusione e il reset del dialogo
+    forceComplete: function() {
+        // Cancella tutti i timeout
+        if (this.timeouts && this.timeouts.length > 0) {
+            this.timeouts.forEach(timeout => clearTimeout(timeout));
+            this.timeouts = [];
+        }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
+        if (this.progressBarInterval) {
+            clearInterval(this.progressBarInterval);
+            this.progressBarInterval = null;
+        }
+
+        // Resetta tutte le variabili di stato
+        this.active = false;
+        this.currentMessage = 0;
+        this.messageQueue = [];
+        this.isPlayerResponse = false;
+        this.displayStartTime = 0;
+
+        // Nascondi e resetta la UI del dialogo
+        const dialogBox = document.getElementById('dialog-box');
+        if (dialogBox) {
+            dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
+            dialogBox.classList.add('dialog-hidden');
+            const dialogText = document.getElementById('dialog-text');
+            if (dialogText) {
+                dialogText.textContent = '';
+            }
+        }
+
+        // Sblocca il gameplay
+        if (typeof resumeMeteorSpawn === 'function') {
+            resumeMeteorSpawn();
+        }
+        if (typeof resumeProgressFill === 'function') {
+            resumeProgressFill();
+        }
+        if (typeof enablePlayerMovement === 'function') {
+            enablePlayerMovement();
+        }
+    },
     
     // Pool di messaggi per ogni livello con relative risposte del player
     messagePools: {
@@ -110,9 +157,19 @@ let dialogSystem = {
     
     // Inizializza il dialogo per il livello corrente
     initForLevel: function(level) {
+        // Forza la conclusione di qualsiasi dialogo precedente
+        this.forceComplete();
+        
+        // Pulisci completamente il testo e la coda
+        const dialogText = document.getElementById('dialog-text');
+        if (dialogText) {
+            dialogText.textContent = '';
+        }
+        this.messageQueue = [];
+        
+        // Resetta lo stato
         this.active = false;
         this.currentMessage = 0;
-        this.messageQueue = [];
         this.isPlayerResponse = false;
         
         // Seleziona il pool di messaggi corretto
@@ -186,10 +243,20 @@ let dialogSystem = {
     
     // Mostra il messaggio corrente
     showCurrentMessage: function() {
+        // Protezione contro messaggi sovrapposti
+        if (!this.active || !this.messageQueue[this.currentMessage]) {
+            this.forceComplete();
+            return;
+        }
+        
         const dialogBox = document.getElementById('dialog-box');
         const dialogText = document.getElementById('dialog-text');
         
-        // Resetta il testo
+        // Resetta il testo e cancella eventuali timeout pendenti
+        if (this.timeouts && this.timeouts.length > 0) {
+            this.timeouts.forEach(timeout => clearTimeout(timeout));
+            this.timeouts = [];
+        }
         dialogText.textContent = '';
         
         // Rimuovi tutte le classi di posizionamento precedenti
@@ -405,15 +472,21 @@ window.startMeteorSpawn = function() {
 // Funzione per avviare la sequenza di dialogo dopo il decollo
 // Esportata globalmente per essere accessibile da main.js
 window.startDialogAfterTakeoff = function() {
-    // Inizializza il dialogo per il livello corrente
-    dialogSystem.initForLevel(currentLevel);
+    // Prima ferma qualsiasi dialogo precedente e pulisci tutto
+    dialogSystem.forceComplete();
     
-    // Metti in pausa la barra di progresso e lo spawn dei meteoriti
-    pauseProgressFill();
-    pauseMeteorSpawn();
-    
-    // Avvia il dialogo (il player può continuare a muoversi)
-    dialogSystem.start();
+    // Aspetta un attimo per assicurarci che tutto sia pulito
+    setTimeout(() => {
+        // Inizializza il dialogo per il livello corrente
+        dialogSystem.initForLevel(currentLevel);
+        
+        // Metti in pausa la barra di progresso e lo spawn dei meteoriti
+        pauseProgressFill();
+        pauseMeteorSpawn();
+        
+        // Avvia il dialogo (il player può continuare a muoversi)
+        dialogSystem.start();
+    }, 100);
 };
 
 // Funzione per testare il sistema di dialogo

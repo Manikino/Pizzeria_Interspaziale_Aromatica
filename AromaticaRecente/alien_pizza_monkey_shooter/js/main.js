@@ -149,6 +149,191 @@ function getShipHitbox() {
 }
 
 let meteorites = [];
+// Navicelle nemiche indistruttibili (passano sempre per il centro come ostacoli)
+let enemyShips = [];
+let enemyNextSpawn = Date.now() + 8000; // primo spawn a 8s
+const enemySpawnIntervalRange = { min: 8000, max: 18000 };
+
+// Spawn di una navicella nemica: parte fuori schermo da un bordo e punta al bordo opposto
+function spawnEnemyShip() {
+    // Spawn from a random side and pass through the entire window area
+    const margin = 120; // how far off-screen to spawn/exit
+    const edges = ['left', 'right', 'top', 'bottom'];
+    const edge = edges[Math.floor(Math.random() * edges.length)];
+
+    // Get window dimensions for full-window movement
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    // Choose any random pass-through point in the window (no center bias)
+    const passX = windowWidth * Math.random(); 
+    const passY = windowHeight * Math.random();
+
+    let sx = 0, sy = 0; // start
+    let tx = 0, ty = 0; // target (on opposite side)
+
+    if (edge === 'left') {
+        sx = -margin;
+        sy = Math.random() * windowHeight;
+        // Ray from start through passPoint -> find intersection with right boundary
+        const dirX = passX - sx;
+        const dirY = passY - sy;
+        const t = (windowWidth + margin - sx) / (dirX || 0.00001);
+        tx = windowWidth + margin;
+        ty = sy + dirY * t;
+    } else if (edge === 'right') {
+        sx = windowWidth + margin;
+        sy = Math.random() * windowHeight;
+        const dirX = passX - sx;
+        const dirY = passY - sy;
+        const t = (-margin - sx) / (dirX || 0.00001);
+        tx = -margin;
+        ty = sy + dirY * t;
+    } else if (edge === 'top') {
+        sx = Math.random() * windowWidth;
+        sy = -margin;
+        const dirX = passX - sx;
+        const dirY = passY - sy;
+        const t = (windowHeight + margin - sy) / (dirY || 0.00001);
+        tx = sx + dirX * t;
+        ty = windowHeight + margin;
+    } else { // bottom
+        sx = Math.random() * windowWidth;
+        sy = windowHeight + margin;
+        const dirX = passX - sx;
+        const dirY = passY - sy;
+        const t = (-margin - sy) / (dirY || 0.00001);
+        tx = sx + dirX * t;
+        ty = -margin;
+    }
+
+    // compute velocity towards target with slower speed
+    const baseSpeed = (spaceship.maxSpeed || 6) * (0.8 + Math.random() * 0.4); // Further reduced speed
+    const dx = tx - sx;
+    const dy = ty - sy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const vx = (dx / dist) * baseSpeed;
+    const vy = (dy / dist) * baseSpeed;
+
+    const ship = {
+        x: sx,
+        y: sy,
+        width: 64,
+        height: 40,
+        vx: vx * 0.3, // Start at 30% speed
+        vy: vy * 0.3, // Start at 30% speed
+        targetVx: vx, // Target velocity
+        targetVy: vy, // Target velocity
+        targetX: tx,
+        targetY: ty,
+        created: Date.now(),
+        lastHit: 0 // Add hit cooldown to prevent multiple hits
+    };
+
+    enemyShips.push(ship);
+}
+
+// Aggiorna le navicelle nemiche: si muovono sempre in linea retta dal lato di spawn
+// al lato opposto passando per un punto interno alla schermata.
+function updateEnemyShips() {
+    const speedFactor = getSpeedFactor();
+    for (let i = enemyShips.length - 1; i >= 0; i--) {
+        const e = enemyShips[i];
+        
+        // Gradually accelerate to target velocity
+        const acceleration = 0.015; // Slow acceleration
+        e.vx += (e.targetVx - e.vx) * acceleration;
+        e.vy += (e.targetVy - e.vy) * acceleration;
+        
+        // Update position with current velocity
+        e.x += e.vx * speedFactor;
+        e.y += e.vy * speedFactor;
+
+        // emissione di particelle sul retro, orientate approssimativamente
+        if (particles.length < 140 && Math.random() < 0.8) {
+            const angle = Math.atan2(e.vy, e.vx);
+            const backX = e.x - Math.cos(angle) * (e.width * 0.45);
+            const backY = e.y - Math.sin(angle) * (e.width * 0.45);
+            const p = createParticle(
+                backX + (Math.random()-0.5)*6,
+                backY + (Math.random()-0.5)*6,
+                { x: (Math.random()-0.5)*0.6, y: 0.8 + Math.random()*0.9 },
+                'thruster'
+            );
+            p.size = 1.6 + Math.random()*2.4;
+            p.life = 14 + Math.random()*22;
+            p.heat = 0.5 + Math.random()*0.7;
+            particles.push(p);
+        }
+
+        // rimuovi quando passa abbondantemente oltre il lato opposto o raggiunge il target
+        const offLeft = e.x < - (e.width + 160);
+        const offRight = e.x > canvas.width + (e.width + 160);
+        const offTop = e.y < - (e.height + 160);
+        const offBottom = e.y > canvas.height + (e.height + 160);
+        const reachedTarget = Math.hypot(e.x - e.targetX, e.y - e.targetY) < 48;
+        if (offLeft || offRight || offTop || offBottom || reachedTarget) {
+            enemyShips.splice(i, 1);
+        }
+    }
+}
+
+// Disegna le navicelle nemiche (semplice forma + fiamma)
+function drawEnemyShips() {
+    for (const e of enemyShips) {
+        ctx.save();
+        // compute angle for orientation based on velocity
+        const angle = Math.atan2(e.vy, e.vx) + Math.PI; // Add PI to rotate 180 degrees since enemy ships face opposite to their movement
+        const cx = e.x + e.width / 2;
+        const cy = e.y + e.height / 2;
+
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+
+        // draw image if available
+        if (images.enemyShip && images.enemyShip.complete && !images.enemyShip._failed && images.enemyShip.naturalWidth > 0) {
+            ctx.drawImage(images.enemyShip, -e.width/2, -e.height/2, e.width, e.height);
+        } else {
+            // fallback: simple body + cockpit
+            ctx.fillStyle = '#aa0000';
+            ctx.strokeStyle = '#ff6666';
+            ctx.lineWidth = 2;
+            roundRect(ctx, -e.width/2, -e.height/2, e.width, e.height, 6, true, true);
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillRect(-e.width*0.1, -e.height*0.25, e.width*0.2, e.height*0.5);
+        }
+
+        // thruster flame behind ship (facing movement direction)
+        const backX = e.width/2 + 6; // Changed from negative to positive to match new rotation
+        const backY = 0;
+        const grad = ctx.createRadialGradient(backX, backY, 1, backX, backY, 20);
+        grad.addColorStop(0, 'rgba(255,255,200,0.9)');
+        grad.addColorStop(0.4, 'rgba(255,140,0,0.8)');
+        grad.addColorStop(1, 'rgba(255,20,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(backX, backY, 8, 14, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+// helper: draw rounded rect
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    if (typeof r === 'undefined') r = 5;
+    if (typeof stroke === 'undefined') stroke = true;
+    if (typeof fill === 'undefined') fill = true;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
 let gameKeys = {
     left: false,
     right: false,
@@ -696,6 +881,12 @@ function backToMenu() {
         go.style.backgroundImage = '';
         go.classList.remove('bg-image-mode', 'bg-cover');
     }
+
+    // Reset forzato del sistema di dialogo
+    if (window.dialogSystem) {
+        dialogSystem.forceComplete();
+    }
+
     showSection('main-menu');
     inputEnabled = false;
     clearGameKeys();
@@ -712,6 +903,7 @@ const images = {
     pizza3: new Image(),
     background: new Image(),
     fire: new Image(),
+    enemyShip: new Image(),
     shieldIcon: new Image(),
     planets: [] // immagini opzionali per i pianeti: img/planet_X.PNG
 };
@@ -790,6 +982,9 @@ function loadImages() {
     images.spaceship.src = 'img/spaceship.png';
     images.meteorite.src = 'img/meteor.png';
 images.fire.src = 'img/fire.svg';
+    // Enemy image (user will add img/Enemy.png)
+    images.enemyShip.src = 'img/Enemy.png';
+    images.enemyShip.onerror = () => { images.enemyShip._failed = true; };
     
     // Icona scudo per UI (SVG inline blu)
     images.shieldIcon.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="%2300bfff"/><stop offset="100%" stop-color="%230066cc"/></linearGradient></defs><path d="M32 4l22 8v14c0 16-10 26-22 34C20 52 10 42 10 26V12l22-8z" fill="url(%23g)" stroke="%230099ff" stroke-width="2"/></svg>';
@@ -821,6 +1016,8 @@ function startGame() {
     // Disabilita input e pulisci i tasti finché non parte il gameplay
     inputEnabled = false;
     clearGameKeys();
+    // Reset del cooldown ESC
+    lastEscTime = 0;
 
     // Reset delle variabili di gioco (mantiene il livello corrente)
     score = 0;
@@ -830,6 +1027,41 @@ function startGame() {
     spaceship.shockwaves = [];
     powerups = [];
     particles = []; // Reset delle particelle
+    
+    // Reset scudi e stato invulnerabilità
+    spaceship.shieldUntil = 0;
+    spaceship.permanentShields = 0;
+    spaceship.invulnerableUntil = 0;
+    spaceship.flashUntil = 0;
+    
+    // Reset completo del sistema di dialogo
+    if (window.dialogSystem) {
+        // Annulla tutti i timeout pendenti dei dialoghi
+        if (dialogSystem.timeouts) {
+            dialogSystem.timeouts.forEach(timeout => clearTimeout(timeout));
+            dialogSystem.timeouts = [];
+        }
+        // Reset completo dello stato del dialogo
+        dialogSystem.active = false;
+        dialogSystem.currentDialog = null;
+        dialogSystem.currentIndex = 0;
+        dialogSystem.queue = [];
+        dialogSystem.dialogHistory = []; // Reset anche della storia dei dialoghi
+        // Nascondi e resetta la UI del dialogo
+        const dialogBox = document.getElementById('dialog-box');
+        if (dialogBox) {
+            dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
+            dialogBox.classList.add('dialog-hidden');
+            const dialogText = document.getElementById('dialog-text');
+            if (dialogText) {
+                dialogText.textContent = '';
+            }
+        }
+    }
+    
+    // Reset navicelle nemiche
+    enemyShips = [];
+    enemyNextSpawn = Date.now() + (enemySpawnIntervalRange.min + Math.random() * (enemySpawnIntervalRange.max - enemySpawnIntervalRange.min));
 
     // Cancella eventuale timer di spawn meteoriti precedente
     if (meteorSpawnTimeout) {
@@ -1035,9 +1267,10 @@ function updateUI() {
     for (let i = 1; i <= 10; i++) {
         const shieldIndicator = document.getElementById(`shield-indicator-${i}`);
         if (shieldIndicator) {
-            const active = (i <= spaceship.permanentShields);
-            shieldIndicator.style.display = active ? 'block' : 'none';
-            if (active && images.shieldIcon && images.shieldIcon.src) {
+            // Mostra sempre tutti gli slot, ma con opacità diversa se attivi/inattivi
+            shieldIndicator.style.display = 'block';
+            shieldIndicator.style.opacity = (i <= spaceship.permanentShields) ? '1' : '0.3';
+            if (images.shieldIcon && images.shieldIcon.src) {
                 shieldIndicator.style.backgroundImage = `url('${images.shieldIcon.src}')`;
             }
         }
@@ -1084,6 +1317,11 @@ function generateMeteorites() {
 }
 
 // Funzione per creare una particella (con object pooling) - MIGLIORATA
+// Utility function to ensure safe radius/size values
+function ensureSafeSize(size, minSize = 0.1) {
+    return Math.max(minSize, size || minSize);
+}
+
 function createParticle(x, y, direction, type = 'thruster') {
     let particle;
     if (particlePool.length > 0) {
@@ -1099,7 +1337,7 @@ function createParticle(x, y, direction, type = 'thruster') {
     particle.maxLifeTime = 3000; // Durata massima in millisecondi (3 secondi)
     
     if (type === 'thruster') {
-        particle.size = Math.random() * 4 + 1.5; // Dimensioni più variabili
+        particle.size = ensureSafeSize(Math.random() * 4 + 1.5); // Dimensioni più variabili con safety check
         particle.speed = Math.random() * 3 + 2; // Velocità più alta
         particle.life = Math.random() * 30 + 20; // Vita più lunga
         particle.direction = direction || { x: (Math.random() - 0.5) * 2, y: 1.8 };
@@ -1133,7 +1371,8 @@ function updateParticles() {
         particles[i].x += particles[i].direction.x * particles[i].speed;
         particles[i].y += particles[i].direction.y * particles[i].speed;
         particles[i].life--;
-        particles[i].size *= 0.95; // Riduzione graduale della dimensione
+        // Ensure size never goes below minimum
+        particles[i].size = ensureSafeSize(particles[i].size * 0.95); // Riduzione graduale della dimensione
         
         // Rimuovi particelle morte, troppo vecchie o troppo piccole e restituiscile al pool
         if (particles[i].life <= 0 || particles[i].size < 0.5 || 
@@ -1214,6 +1453,14 @@ function gameUpdate() {
         
         // Aggiornamento dei meteoriti
         updateMeteorites();
+
+        // Aggiornamento delle navicelle nemiche (ostacoli indistruttibili)
+        updateEnemyShips();
+        // Spawn programmato delle navicelle nemiche (solo dal livello 4 o in modalità infinita)
+        if (Date.now() >= enemyNextSpawn && (currentLevel >= 4 || isInfiniteMode)) {
+            spawnEnemyShip();
+            enemyNextSpawn = Date.now() + (enemySpawnIntervalRange.min + Math.random() * (enemySpawnIntervalRange.max - enemySpawnIntervalRange.min));
+        }
         
         // Spawn e aggiornamento power-up
         handlePowerupSpawning();
@@ -1836,10 +2083,85 @@ function checkCollisions() {
                 i--; // perché array accorciato
                 continue;
             } else {
+                const now = Date.now();
+                // Se è già invulnerabile, salta la collisione
+                if (spaceship.invulnerableUntil && now < spaceship.invulnerableUntil) {
+                    continue;
+                }
+                
+                // Avvia invulnerabilità e effetto lampeggio per 0.2 secondi
+                spaceship.invulnerableUntil = now + 200;
+                spaceship.flashUntil = now + 200;
+                spaceship.hitTime = now;
+
+                // Effetti particellari per l'impatto
+                const hitX = (shipBox.x + shipBox.width/2 + meteorite.x + meteorite.width/2) / 2;
+                const hitY = (shipBox.y + shipBox.height/2 + meteorite.y + meteorite.height/2) / 2;
+                
+                for (let p = 0; p < 20; p++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 3;
+                    const particle = createParticle(
+                        hitX,
+                        hitY,
+                        { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+                        'explosion'
+                    );
+                    particle.color = '#ff6600';
+                    particle.life = 30 + Math.random() * 20;
+                    particles.push(particle);
+                }
+
                 // Game over
                 startShipExplosion();
                 return;
             }
+        }
+    }
+
+    // Collisione tra navicella e navicelle nemiche (indistruttibili)
+    for (let ei = 0; ei < enemyShips.length; ei++) {
+        const e = enemyShips[ei];
+        const shipBox = getShipHitbox();
+        if (
+            shipBox.x < e.x + e.width &&
+            shipBox.x + shipBox.width > e.x &&
+            shipBox.y < e.y + e.height &&
+            shipBox.y + shipBox.height > e.y
+        ) {
+            const now = Date.now();
+            const hasTimedShield = spaceship.shieldUntil > now;
+            const hasPermanentShield = spaceship.permanentShields > 0;
+            
+            // Se non ci sono scudi, la navicella nemica non spawna
+            if (!hasTimedShield && !hasPermanentShield) {
+                continue;
+            }
+
+            // Remove all shields
+            spaceship.permanentShields = 0;
+
+            // Visual effects for shield loss
+            const hitX = (shipBox.x + shipBox.width/2 + e.x + e.width/2) / 2;
+            const hitY = (shipBox.y + shipBox.height/2 + e.y + e.height/2) / 2;
+            
+            // More dramatic particle effect for losing all shields
+            for (let p = 0; p < 20; p++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                const particle = createParticle(
+                    hitX,
+                    hitY,
+                    { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+                    'explosion'
+                );
+                particle.color = '#ff6600';
+                particle.life = 30 + Math.random() * 20;
+                particles.push(particle);
+            }
+
+            updateUI();
+            continue;
         }
     }
 }
@@ -1971,14 +2293,15 @@ function drawGame() {
         ctx.restore();
     }
     if (spaceship.pickupAnimUntil > Date.now()) {
-        const t = (spaceship.pickupAnimUntil - Date.now()) / 200;
+        const t = Math.min(1, (spaceship.pickupAnimUntil - Date.now()) / 200);
         const cx = spaceship.x + spaceship.width/2;
         const cy = spaceship.y + spaceship.height/2;
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,0,0.7)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(cx, cy, 10 + 25*(1-t), 0, Math.PI*2);
+        const radius = Math.max(0, 10 + 25*(1-t)); // Ensure radius is never negative
+        ctx.arc(cx, cy, radius, 0, Math.PI*2);
         ctx.stroke();
         ctx.restore();
     }
@@ -1988,11 +2311,14 @@ function drawGame() {
         ctx.save();
         ctx.translate(spaceship.x + spaceship.width/2, spaceship.y + spaceship.height/2);
         ctx.rotate(spaceship.rotation);
+
+        // No flash effect
+
         if (spaceship.thrusterActive) {
             ctx.drawImage(images.fire, -spaceship.width/2, spaceship.height/2 - 10, spaceship.width, 30);
         }
         // Disegna la navicella mantenendo le proporzioni (più stretta lateralmente) e centrata
-ctx.drawImage(images.spaceship, -spaceship.width * 0.7/2, -spaceship.height/2, spaceship.width * 0.7, spaceship.height);
+        ctx.drawImage(images.spaceship, -spaceship.width * 0.7/2, -spaceship.height/2, spaceship.width * 0.7, spaceship.height);
         ctx.restore();
     }
     
@@ -2117,7 +2443,10 @@ if (animationState === 'landing') {
     }
        
     // Rimossa visualizzazione pizza durante il gameplay
-
+    // Disegna le navicelle nemiche sopra i meteoriti
+    if (enemyShips.length > 0) {
+        drawEnemyShips();
+    }
     // Disegna power-up sopra tutto (bagliore)
     for (const p of powerups) {
         if (p.type === 'shield_timed') {
@@ -2557,10 +2886,26 @@ function startCountdown() {
     }
 }
 
+// Variabile per il cooldown del tasto ESC
+let lastEscTime = 0;
+const escCooldown = 2000; // 5 secondi di cooldown
+
 // Gestione degli input da tastiera
 function handleKeyDown(e) {
-    // Gestisci ESC per il menu di pausa
+    // Gestisci ESC per il menu di pausa con cooldown
     if (e.key === 'Escape') {
+        // Non fare nulla se il countdown è attivo
+        if (isCountingDown) {
+            return;
+        }
+        
+        const now = Date.now();
+        if (now - lastEscTime < escCooldown) {
+            // Non fare nulla se siamo ancora nel cooldown
+            return;
+        }
+        lastEscTime = now;
+        
         if (isPaused) {
             startCountdown();
         } else if (inputEnabled) {

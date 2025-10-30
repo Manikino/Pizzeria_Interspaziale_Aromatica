@@ -496,9 +496,9 @@ body.game-mode {
     position: absolute;
     left: 20px;
     top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    display: grid;
+    grid-template-columns: repeat(2, 36px);
+    grid-gap: 5px;
     z-index: 5;
 }
 
