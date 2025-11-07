@@ -203,7 +203,7 @@ body {
     /* Se hai un font pixel (es. PressStart2P) metti il file in ../fonts/Press_Start_2P/ */
     font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
     background-color: #0a0a2a;
-    background-image: url('../img/background.png');
+    background-image: url('../img/Background.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -261,14 +261,156 @@ h4 {
     color: #ff9900;
 }
 
+/* Schermata di benvenuto */
+.welcome-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100%;
+    background-color: #000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.welcome-message h1 {
+    font-size: 36px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 50px;
+    line-height: 1.5;
+    max-width: 800px;
+}
+
+.name-input-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 400px;
+}
+
+#player-name {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    font-family: 'PressStart2P', 'PixelFallback', sans-serif;
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #5B6EE6;
+    border-radius: 10px;
+    color: #fff;
+    text-align: center;
+}
+
+.start-button {
+    
+    padding: 20px;
+    font-size: 1.2rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+    image-rendering: pixelated;
+    box-shadow: 0px 4px 0px #000;
+    border-width: 4px;
+    border-style: solid;
+    text-shadow: 2px 2px 0px #ffffff;
+    color: #ffffff;
+}
+
+.start-button:hover {
+    transform: scale(1.06) translateY(-5px);
+    box-shadow: 0 12px 22px rgba(255, 255, 255, 0.6);
+}
+
 /* Menu principale */
 .main-menu {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 30px;
     margin: 50px 0;
+}
+
+/* Contenitore dei bottoni del menu */
+.main-menu .menu-buttons-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.main-menu .menu-button {
+    display: inline-block;
+}
+
+/* Controlli del volume */
+.volume-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid rgba(91,110,230,0.18);
+    width: 100%;
+    max-width: 700px;
+}
+
+.volume-control {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.volume-control label {
+    font-family: 'PressStart2P', 'PixelFallback', sans-serif;
+    font-size: 14px;
+    color: #fff;
+    width: 80px;
+}
+
+.volume-control input[type="range"] {
+    flex-grow: 1;
+    height: 15px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(91,110,230,0.3);
+    border-radius: 5px;
+    outline: none;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #5B6EE6;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.volume-control input[type="range"]::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #5B6EE6;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 
 /* Icone nei bottoni */
@@ -278,81 +420,25 @@ h4 {
     font-size: 1.5rem;
 }
 
-/* Stili specifici per ogni bottone */
-.menu-docs {
-    /* Blu/Azzurro per 'Manuale' */
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
-    border-color: #5B6EE6;
-}
-.menu-docs:hover {
-    background: linear-gradient(135deg, #8f9ef8, #5B6EE6);
-    border-color: #a6e1ff;
-}
-
-.menu-play {
-    /* Viola per 'Play' */
-    background: linear-gradient(135deg, #b78eff, #8a5bff);
-    border-color: #d6a2e8;
-}
-.menu-play:hover {
-    background: linear-gradient(135deg, #d6a2e8, #b78eff);
-    border-color: #e8c3f8;
-}
-
-.menu-credits {
-    /* Rosa per 'Credits' */
-    background: linear-gradient(135deg, #ff9ac8, #ff66a3);
-    border-color: #ffb6da;
-}
-.menu-credits:hover {
-    background: linear-gradient(135deg, #ffd6eb, #ff9ac8);
-    border-color: #ffd6eb;
-}
 
 /* Bottone default ora usa il blu spaziale adattato */
 .menu-button {
-    width: 220px;
-    padding: 18px;
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
-    color: white;
-    border: 3px solid rgba(91,110,230,0.18);
-    border-radius: 15px;
-    font-size: 1rem; /* Ridotto da 1.4rem a 1rem */
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 5px 15px rgba(91,110,230,0.18);
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+        padding: 20px;
+        font-size: 1.2rem;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+        image-rendering: pixelated;
+        box-shadow: 0px 4px 0px #000;
+        border-width: 4px;
+        border-style: solid;
+        text-shadow: 2px 2px 0px #000;
+        color: #ffffff;
 }
 
-.menu-button::before {
-    content: '';
-    position: absolute;
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
 
-.menu-button:hover {
-    transform: scale(1.06) translateY(-5px);
-    box-shadow: 0 12px 22px rgba(60, 80, 200, 0.25);
-    border-color: rgba(255,255,255,0.12);
-}
-
-.menu-button:hover::before {
-    opacity: 1;
-    animation: pulse 1.5s infinite;
-}
 
 @keyframes pulse {
     0% { transform: scale(0.95); opacity: 0.7; }
@@ -425,12 +511,12 @@ h4 {
 }
 
 .locked {
-    background-color: #444466;
+    background-color: #222233 !important;
     color: rgba(0,0,0,0); /* Nasconde completamente il testo */
-    border-color: #333355;
+    border-color: #111122 !important;
     cursor: not-allowed;
     position: relative;
-    box-shadow: 0 4px 0px #222244;
+    box-shadow: 0 4px 0px #000011 !important;
     font-size: 0; /* Riduce la dimensione del testo a zero */
 }
 
@@ -443,6 +529,7 @@ h4 {
     font-size: 2rem;
     font-family: monospace;
     text-shadow: 2px 2px 0px #000;
+    color: rgba(0,0,0,0); /* Nasconde completamente il testo */
 }
 
 .unlocked:hover {
@@ -731,22 +818,31 @@ body.game-mode {
 
 /* Bottoni di navigazione */
 .back-button {
-    display: block;
-    width: 200px;
-    margin: 20px auto 0;
-    padding: 10px;
-    background-color: #3399ff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
+    padding: 20px;
+    font-size: 1.2rem;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s;
+    text-align: center;
     font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+    image-rendering: pixelated;
+    box-shadow: 0px 4px 0px #000;
+    border-width: 4px;
+    border-style: solid;
+    text-shadow: 2px 2px 0px #000;
+    color: #ffffff;
 }
 
 .back-button:hover {
     background-color: #6976D0;
+    outline: none;
+    transform: scale(1.06) translateY(-5px);
+    box-shadow: 0 12px 22px rgba(255, 255, 255, 0.6);
+    border-width: 4px;
+    border-style: solid;
+    text-shadow: 2px 2px 0px #000;
+    color: #ffffff;
+    transition: all 0.3s;
 }
 
 /* Game Over */
@@ -766,24 +862,26 @@ body.game-mode {
 /* Modalità infinita */
 .infinite-mode-option {
     margin-top: 20px;
+    margin-bottom: 20px;
     text-align: center;
 }
 
 .infinite-mode-option button {
-    background: linear-gradient(135deg, #4e5bd6, #6a4fbf);
-    color: white;
-    padding: 10px 20px;
-    font-size: 18px;
-    border: none;
-    border-radius: 5px;
+    
+    padding: 20px;
+    font-size: 1.2rem;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.3s;
+    text-align: center;
     font-family: 'PressStart2P', 'PixelFallback', 'Arial', sans-serif;
+    image-rendering: pixelated;
+    box-shadow: 0px 4px 0px #000;
+    border-width: 4px;
+    border-style: solid;
+    text-shadow: 2px 2px 0px #000;
 }
 
-.infinite-mode-option button:hover {
-    background: linear-gradient(135deg, #8f9ef8, #5B6EE6);
-}
 
 /* Responsive */
 @media (max-width: 850px) {
@@ -811,4 +909,124 @@ body.game-mode {
 .pixel-font.px {
     text-shadow: 0 0 0 rgba(0,0,0,0.95), 1px 0 0 rgba(0,0,0,0.95), 0 1px 0 rgba(0,0,0,0.95), 1px 1px 0 rgba(0,0,0,0.95);
     letter-spacing: 0.5px;
+}
+
+/* Pixel-art overrides */
+.menu-button, .back-button, .infinite-mode-option button, .start-button, .level-button, button {
+    image-rendering: pixelated;
+    border-radius: 0;
+    border-width: 4px;
+    border-style: solid;
+    border-color: #1b1f3b;
+    background: #3a46a8;
+    box-shadow: 0 4px 0 #0f1330, 0 0 0 2px #000 inset;
+    text-shadow: 2px 2px 0 #000;
+    padding: 15px 25px;
+    font-family: 'PressStart2P', 'PixelFallback', sans-serif;
+    font-size: 16px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s;
+    margin: 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-button:hover, 
+.back-button:hover, 
+.infinite-mode-option button:hover, 
+.start-button:hover, 
+.level-button:hover:not(.locked),
+button:hover:not(.locked) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 var(--button-shadow-color, #0f1330), 0 0 10px currentColor !important;
+    filter: brightness(1.2);
+    transition: transform 0.2s, box-shadow 0.3s, filter 0.3s;
+}
+
+
+/* Permetti PNG di sfondo per i bottoni (Buttons.png) */
+.menu-button, .back-button, .infinite-mode-option button, .start-button, .level-button {
+    background-image: url('../img/Buttons.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+/* Variazioni di tinta per differenziare i bottoni esistenti */
+.menu-docs { filter: hue-rotate(200deg) saturate(1.1); }
+.menu-play { filter: hue-rotate(270deg) saturate(1.1); }
+.menu-credits { filter: hue-rotate(320deg) saturate(1.1); }
+
+/* Volume sliders to pixel-art */
+.volume-control input[type="range"] {
+    height: 18px;
+    background: repeating-linear-gradient(90deg, #1b1f3b 0 6px, #2a2f5b 6px 12px);
+    border-radius: 0;
+}
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 0;
+    background: #ffd34d;
+    border: 3px solid #000;
+    box-shadow: 0 0 0 2px #1b1f3b inset;
+}
+.volume-control input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 0;
+    background: #ffd34d;
+    border: 3px solid #000;
+    box-shadow: 0 0 0 2px #1b1f3b inset;
+}
+
+/* In-game HUD (stats) pixel style */
+.level-info {
+    font-family: 'PressStart2P', monospace;
+    image-rendering: pixelated;
+    border: 4px solid #0f1330;
+    border-radius: 0;
+    background: #14173a;
+    box-shadow: 0 4px 0 #000;
+}
+.level-info span {
+    border: 3px solid #000;
+    border-radius: 0;
+    background: #1b1f3b;
+    text-shadow: 2px 2px 0 #000;
+}
+
+/* Game border/frame pixel style */
+#game-canvas {
+    border-radius: 0;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #00bfff;
+    box-shadow: 0 0 0 3px #000, 0 0 24px rgba(0, 191, 255, 0.35);
+}
+
+/* Progress bar pixel style */
+.progress-bar {
+    border: 6px solid #0f1330;
+    border-radius: 0;
+    background: #14173a;
+    width: 34px;
+}
+.progress-fill {
+    border-radius: 0;
+    background: #38c172;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.35);
+}
+#progress-text {
+    font-family: 'PressStart2P', monospace;
+    text-shadow: 2px 2px 0 #000;
+}
+
+/* Pause panel buttons (if any) */
+#pause-panel button {
+    image-rendering: pixelated;
+    border-radius: 0;
+    border: 4px solid #0f1330;
+    background: #3a46a8;
+    text-shadow: 2px 2px 0 #000;
 }

@@ -2,6 +2,316 @@
 let canvas, ctx;
 let gameActive = false;
 let gameLoop;
+
+// Flag per evitare doppi avvii del dialogo dopo il decollo
+let dialogStartedAfterTakeoff = false;
+
+// Funzione per generare colori casuali per i bottoni
+function applyRandomColorsToButtons() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        // Salta i bottoni con classe "locked"
+        if (button.classList.contains('locked')) return;
+        
+        const randomBackground = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+        const randomBorder = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+        const darkerShadow = adjustColor(randomBackground, -30);
+        
+        button.style.backgroundColor = randomBackground;
+        button.style.borderColor = randomBorder;
+        button.style.boxShadow = `0 4px 0 ${darkerShadow}, 0 0 0 2px #000 inset`;
+        button.style.setProperty('--button-shadow-color', darkerShadow);
+        button.style.color = '#ffffff';
+    });
+}
+
+// Funzione per scurire un colore (per le ombre)
+function adjustColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    const newR = Math.max(0, Math.min(255, r + amount));
+    const newG = Math.max(0, Math.min(255, g + amount));
+    const newB = Math.max(0, Math.min(255, b + amount));
+    
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+}
+
+// Pausa quando la scheda non è visibile
+let wasPausedByVisibility = false;
+// Traccia l'inizio pausa per congelare i timer di scudo temporaneo
+let pauseStartedAt = null;
+
+// Variabile per la musica segreta
+let secretAudio = new Audio('Songs/Secret.mp3');
+
+// Variabili per il punteggio più alto
+let highScore = 0;
+let highestPhase = 0;
+
+// Sistema Audio
+let audioSystem = {
+    currentTrack: null,
+    nextTrack: null,
+    mainTheme: new Audio('Songs/MainTheme.mp3'),
+    victorySound: new Audio('Songs/Victory.mp3'),
+    lostSound: new Audio('Songs/Lost.mp3'),
+    secretTrack: new Audio('Songs/Secret.mp3'),
+    levelTracks: {},
+    fadeOutDuration: 1000,
+    fadeInDuration: 1000,
+    musicVolume: Math.pow(0.7, 2.5), // Valore convertito in scala logaritmica
+    sfxVolume: Math.pow(0.7, 2.5), // Valore convertito in scala logaritmica
+    isTransitioning: false,
+    isInGame: false,
+    normalPlaybackRate: 1.0,
+    acceleratedPlaybackRate: 1.0, // Velocità accelerata della musica
+    
+    // Effetti sonori
+    sfx: {
+        aoe: new Audio('SFX/AOE.mp3'),
+    hit: new Audio('SFX/Hit.mp3'),
+    lost: new Audio('SFX/Lost.mp3'),
+    meteor: new Audio('SFX/Meteor.mp3'),
+    projectile: new Audio('SFX/Projectile.mp3'),
+    shield: new Audio('SFX/Shield.mp3'),
+    temporaryShield: new Audio('SFX/TemporaryShield.mp3')
+    },
+
+    init() {
+        // Inizializza le tracce per ogni livello
+        for (let i = 1; i <= 6; i++) {
+            this.levelTracks[i] = new Audio(`Songs/Level${i}.mp3`);
+            this.levelTracks[i].loop = true; // le tracce dei livelli devono ripetersi
+        }
+        // Traccia per la modalità infinita (se presente)
+        this.infiniteTrack = new Audio('Songs/Infinite.mp3');
+        this.infiniteTrack.loop = true;
+
+        // Tema principale
+        this.mainTheme.loop = true;
+        this.currentTrack = this.mainTheme;
+        
+        // Traccia segreta
+        this.secretTrack.loop = true;
+        
+        // Non avviare automaticamente il tema principale
+        // La musica verrà avviata dopo l'interazione dell'utente
+        this.initialized = true;
+    },
+
+    async fadeIn(track, duration = this.fadeInDuration) {
+        track.volume = 0;
+        
+        try {
+            // Aggiungiamo un flag per indicare che l'utente ha interagito con la pagina
+            document.querySelector('body').classList.add('user-interacted');
+            await track.play();
+            this.isTransitioning = true;
+            const startTime = Date.now();
+            
+            const fade = () => {
+                const currentTime = Date.now();
+                const elapsed = currentTime - startTime;
+                const volume = Math.min(elapsed / duration, 1) * this.musicVolume;
+                track.volume = volume;
+                
+                if (elapsed < duration) {
+                    requestAnimationFrame(fade);
+                } else {
+                    track.volume = this.musicVolume;
+                    this.isTransitioning = false;
+                }
+            };
+            
+            fade();
+        } catch (error) {
+            console.log('Audio playback failed:', error);
+            // Imposta comunque il volume in caso di errore
+            track.volume = this.musicVolume;
+            this.isTransitioning = false;
+        }
+    },
+
+    async fadeOut(track, duration = this.fadeOutDuration) {
+        const startVolume = track.volume;
+        const startTime = Date.now();
+        this.isTransitioning = true;
+        
+        const fade = () => {
+            const currentTime = Date.now();
+            const elapsed = currentTime - startTime;
+            const volume = Math.max(startVolume - (startVolume * elapsed / duration), 0);
+            track.volume = volume;
+            
+            if (volume > 0) {
+                requestAnimationFrame(fade);
+            } else {
+                track.pause();
+                track.currentTime = 0;
+                this.isTransitioning = false;
+            }
+        };
+        
+        fade();
+    },
+
+    async stopAllTracks() {
+        // Ferma tutte le tracce audio e resetta il tempo di riproduzione a 0
+        if (this.mainTheme) {
+            this.mainTheme.pause();
+            this.mainTheme.currentTime = 0;
+        }
+        if (this.victorySound) {
+            this.victorySound.pause();
+            this.victorySound.currentTime = 0;
+        }
+        if (this.lostSound) {
+            this.lostSound.pause();
+            this.lostSound.currentTime = 0;
+        }
+        if (this.secretTrack) {
+            this.secretTrack.pause();
+            this.secretTrack.currentTime = 0;
+        }
+        if (this.infiniteTrack) {
+            this.infiniteTrack.pause();
+            this.infiniteTrack.currentTime = 0;
+        }
+        for (let i = 1; i <= 6; i++) {
+            if (this.levelTracks[i]) {
+                this.levelTracks[i].pause();
+                this.levelTracks[i].currentTime = 0;
+            }
+        }
+        // Resetta il currentTrack
+        this.currentTrack = null;
+    },
+
+    async transitionTo(newTrack) {
+        if (this.isTransitioning) return;
+        if (this.currentTrack === newTrack) return;
+        
+        // Ferma tutte le altre tracce prima di iniziare la nuova
+        await this.stopAllTracks();
+        
+        this.currentTrack = newTrack;
+        await this.fadeIn(this.currentTrack);
+    },
+
+    playMainTheme() {
+        // Verifica se l'utente ha già interagito con la pagina
+        // o se la variabile musicStarted è definita e true
+        if (document.querySelector('body').classList.contains('user-interacted') || 
+            (typeof musicStarted !== 'undefined' && musicStarted)) {
+            this.transitionTo(this.mainTheme);
+        } else {
+            console.log('Tentativo di riproduzione automatica bloccato: richiesta interazione utente');
+        }
+    },
+
+    playLevelMusic(level) {
+        if (this.levelTracks[level]) {
+            this.transitionTo(this.levelTracks[level]);
+        }
+    },
+
+    // Musica per la modalità infinita (fallback a Level1 se mancante)
+    playInfiniteMusic() {
+        if (this.infiniteTrack && this.infiniteTrack.src) {
+            this.transitionTo(this.infiniteTrack);
+        } else if (this.levelTracks[1]) {
+            this.transitionTo(this.levelTracks[1]);
+        }
+    },
+
+    playVictory() {
+        // Ferma tutte le tracce e riproduci l'effetto di vittoria
+        this.stopAllTracks();
+        this.victorySound.currentTime = 0;
+        // Applica il volume musicale corrente
+        this.victorySound.volume = this.musicVolume;
+        // Riproduci solo se l'utente ha già interagito con la pagina
+        if (this.currentTrack || document.querySelector('body').classList.contains('user-interacted')) {
+            this.victorySound.play().catch(e => console.log('Audio playback failed:', e));
+        }
+    },
+
+    playLost() {
+        // Ferma tutte le tracce e riproduci l'effetto di sconfitta
+        this.stopAllTracks();
+        this.lostSound.currentTime = 0;
+        // Applica il volume musicale corrente
+        this.lostSound.volume = this.musicVolume;
+        // Riproduci solo se l'utente ha già interagito con la pagina
+        if (this.currentTrack || document.querySelector('body').classList.contains('user-interacted')) {
+            this.lostSound.play().catch(e => console.log('Audio playback failed:', e));
+        }
+    },
+    
+    playSecretTrack() {
+        this.transitionTo(this.secretTrack);
+    },
+    
+    // Riproduce un effetto sonoro
+    playSFX(sfxName) {
+        // Riproduci SFX solo se il gioco è in corso e non nei menu
+        if (!this.isInGame) return;
+        
+        // Verifica se l'effetto sonoro esiste
+        if (!this.sfx[sfxName]) return;
+        
+        // Verifica se l'utente ha interagito con la pagina
+        if (!document.querySelector('body').classList.contains('user-interacted')) return;
+        
+        try {
+            // Per alcuni effetti sonori, applica variazioni casuali di intonazione
+            if (sfxName === 'meteor' || sfxName === 'projectile' || sfxName === 'shield') {
+                try {
+                    // Metodo alternativo che evita problemi CORS
+                    // Clona l'elemento audio per evitare sovrapposizioni
+                    const sound = this.sfx[sfxName].cloneNode();
+                    // Volume ridotto per i meteoriti, moltiplicato per il volume generale degli effetti
+                    const baseVolume = sfxName === 'meteor' ? 0.4 : 0.7;
+                    sound.volume = baseVolume * this.sfxVolume;
+                    
+                    // Genera una variazione casuale del pitch (±15%)
+                    const pitchVariation = 0.85 + Math.random() * 0.3; // tra 0.85 e 1.15
+                    
+                    // Imposta la velocità di riproduzione
+                    sound.preservesPitch = false;
+                    sound.playbackRate = pitchVariation;
+                    
+                    // Riproduci il suono
+                    sound.play().catch(e => {
+                        console.log('Audio playback failed, fallback to standard:', e);
+                        // Fallback alla riproduzione standard
+                        const baseVolume = sfxName === 'meteor' ? 0.4 : 0.7;
+                        this.sfx[sfxName].volume = baseVolume * this.sfxVolume;
+                        this.sfx[sfxName].currentTime = 0;
+                        this.sfx[sfxName].play().catch(e => console.log('SFX fallback failed:', e));
+                    });
+                } catch (audioError) {
+                    console.log('Advanced audio failed, using standard playback:', audioError);
+                    // Fallback alla riproduzione standard
+                    const baseVolume = sfxName === 'meteor' ? 0.4 : 0.7;
+                    this.sfx[sfxName].volume = baseVolume * this.sfxVolume;
+                    this.sfx[sfxName].currentTime = 0;
+                    this.sfx[sfxName].play().catch(e => console.log('SFX fallback failed:', e));
+                }
+            } else {
+                // Per gli altri effetti sonori, riproduci normalmente
+                this.sfx[sfxName].volume = 0.7 * this.sfxVolume;
+                this.sfx[sfxName].currentTime = 0;
+                this.sfx[sfxName].play().catch(e => console.log('SFX playback failed:', e));
+            }
+        } catch (error) {
+            console.log('SFX playback error:', error);
+        }
+    }
+};
 let currentLevel = 1;
 let score = 0;
 let progress = 0;
@@ -16,10 +326,32 @@ let remainingBullets = maxBullets; // Proiettili rimanenti
 
 // Variabili per la sequenza Konami e il dialogo segreto sono definite in secret-dialog.js
 
-// Sistema di animazioni
-let animationState = 'none'; // 'takeoff', 'landing', 'game', 'none'
+// Gestione della sequenza Konami
+document.addEventListener('keydown', function(event) {
+    // Se il gioco è attivo o c'è un dialogo attivo, non processare la sequenza Konami
+    if (dialogSystem && dialogSystem.active) return;
+    
+    // Verifica se il tasto premuto corrisponde al prossimo nella sequenza Konami
+    if (event.key === konamiSequence[konamiIndex]) {
+        konamiIndex++;
+        
+        // Se la sequenza è completa, attiva il dialogo segreto e la musica segreta
+        if (konamiIndex === konamiSequence.length) {
+            konamiIndex = 0; // Reset per permettere di inserire nuovamente la sequenza
+            activateSecretDialog();
+        }
+    } else {
+        // Reset se viene premuto un tasto sbagliato
+        konamiIndex = 0;
+    }
+});
+
+// Sistema di animazioni e fade-in
+let animationState = 'none'; // 'takeoff', 'landing', 'game', 'none', 'fade-in'
 let animationProgress = 0; // 0-1 per il progresso dell'animazione
 let animationStartTime = 0;
+let fadeInProgress = 0; // 0-1 per il fade-in iniziale
+let gameStarted = false;
 // Stato esplosione navicella per sequenza game over ritardata
 let shipExplosionState = { active: false, start: 0, duration: 1100, x: 0, y: 0, r: 0, maxR: 260 };
 let planet = {
@@ -249,22 +581,7 @@ function updateEnemyShips() {
         e.x += e.vx * speedFactor;
         e.y += e.vy * speedFactor;
 
-        // emissione di particelle sul retro, orientate approssimativamente
-        if (particles.length < 140 && Math.random() < 0.8) {
-            const angle = Math.atan2(e.vy, e.vx);
-            const backX = e.x - Math.cos(angle) * (e.width * 0.45);
-            const backY = e.y - Math.sin(angle) * (e.width * 0.45);
-            const p = createParticle(
-                backX + (Math.random()-0.5)*6,
-                backY + (Math.random()-0.5)*6,
-                { x: (Math.random()-0.5)*0.6, y: 0.8 + Math.random()*0.9 },
-                'thruster'
-            );
-            p.size = 1.6 + Math.random()*2.4;
-            p.life = 14 + Math.random()*22;
-            p.heat = 0.5 + Math.random()*0.7;
-            particles.push(p);
-        }
+        // Rimosse particelle di spinta delle navicelle nemiche
 
         // rimuovi quando passa abbondantemente oltre il lato opposto o raggiunge il target
         const offLeft = e.x < - (e.width + 160);
@@ -283,7 +600,7 @@ function drawEnemyShips() {
     for (const e of enemyShips) {
         ctx.save();
         // compute angle for orientation based on velocity
-        const angle = Math.atan2(e.vy, e.vx) + Math.PI; // Add PI to rotate 180 degrees since enemy ships face opposite to their movement
+        const angle = Math.atan2(e.vy, e.vx) + Math.PI + (270 * Math.PI / 180); // Add PI to rotate 180 degrees + 270 degrees as requested
         const cx = e.x + e.width / 2;
         const cy = e.y + e.height / 2;
 
@@ -292,7 +609,9 @@ function drawEnemyShips() {
 
         // draw image if available
         if (images.enemyShip && images.enemyShip.complete && !images.enemyShip._failed && images.enemyShip.naturalWidth > 0) {
-            ctx.drawImage(images.enemyShip, -e.width/2, -e.height/2, e.width, e.height);
+            // Invertiamo larghezza e altezza per correggere l'orientamento dell'immagine
+            // L'immagine originale è verticale, quindi la disegniamo con altezza e larghezza scambiate
+            ctx.drawImage(images.enemyShip, -e.height/2, -e.width/2, e.height, e.width);
         } else {
             // fallback: simple body + cockpit
             ctx.fillStyle = '#aa0000';
@@ -303,17 +622,7 @@ function drawEnemyShips() {
             ctx.fillRect(-e.width*0.1, -e.height*0.25, e.width*0.2, e.height*0.5);
         }
 
-        // thruster flame behind ship (facing movement direction)
-        const backX = e.width/2 + 6; // Changed from negative to positive to match new rotation
-        const backY = 0;
-        const grad = ctx.createRadialGradient(backX, backY, 1, backX, backY, 20);
-        grad.addColorStop(0, 'rgba(255,255,200,0.9)');
-        grad.addColorStop(0.4, 'rgba(255,140,0,0.8)');
-        grad.addColorStop(1, 'rgba(255,20,0,0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.ellipse(backX, backY, 8, 14, 0, 0, Math.PI*2);
-        ctx.fill();
+        // Fiamma/thruster nemico rimossi
 
         ctx.restore();
     }
@@ -361,10 +670,194 @@ let baseCanvasWidth = 800;
 let baseCanvasHeight = 600;
 let canvasScaleFactor = 1;
 
+// Funzione per salvare il punteggio più alto
+function saveHighScore() {
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+    }
+    
+    if (infinitePhase > highestPhase) {
+        highestPhase = infinitePhase;
+        localStorage.setItem('highestPhase', highestPhase);
+    }
+    
+    // Aggiorna la visualizzazione nel menu principale
+    updateHighScoreDisplay();
+}
+
+// Funzione per caricare il punteggio più alto
+function loadHighScore() {
+    const savedHighScore = localStorage.getItem('highScore');
+    const savedHighestPhase = localStorage.getItem('highestPhase');
+    
+    if (savedHighScore !== null) {
+        highScore = parseInt(savedHighScore);
+    }
+    
+    if (savedHighestPhase !== null) {
+        highestPhase = parseInt(savedHighestPhase);
+    }
+    
+    // Aggiorna i valori nel menu principale
+    updateHighScoreDisplay();
+}
+
+// Funzione per aggiornare la visualizzazione del punteggio più alto nel menu principale
+function updateHighScoreDisplay() {
+    const highScoreElement = document.getElementById('high-score');
+    const highestPhaseElement = document.getElementById('highest-phase');
+    
+    if (highScoreElement) {
+        highScoreElement.textContent = highScore;
+    }
+    
+    if (highestPhaseElement) {
+        highestPhaseElement.textContent = highestPhase + 1;
+    }
+}
+
 // Inizializzazione al caricamento della pagina
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementi DOM
+    // Inizializza il sistema audio
+    audioSystem.init();
+    // Carica il punteggio più alto
+    loadHighScore();
+    // Non avviare automaticamente la musica, aspetta l'interazione dell'utente
+    audioSystem.stopAllTracks();
+    
+    // Applica colori casuali a tutti i bottoni
+    applyRandomColorsToButtons();
+    
+    // Gestione della schermata di benvenuto
+    const welcomeScreen = document.getElementById('welcome-screen');
     const mainMenu = document.getElementById('main-menu');
+    const header = document.querySelector('header');
+    const startButton = document.getElementById('start-game');
+    const playerNameInput = document.getElementById('player-name');
+    
+    // Quando l'utente preme il bottone "sono pronto"
+    startButton.addEventListener('click', function() {
+        // Ottieni il nome del giocatore o usa "Bobo" come default
+        let playerName = playerNameInput.value.trim();
+        if (!playerName) {
+            playerName = "Bobo";
+        }
+        
+        // Salva il nome del giocatore
+        localStorage.setItem('playerName', playerName);
+        
+        // Crea un overlay per il fade-out/fade-in
+        const fadeOverlay = document.createElement('div');
+        fadeOverlay.style.position = 'fixed';
+        fadeOverlay.style.top = '0';
+        fadeOverlay.style.left = '0';
+        fadeOverlay.style.width = '100%';
+        fadeOverlay.style.height = '100%';
+        fadeOverlay.style.backgroundColor = 'black';
+        fadeOverlay.style.opacity = '0';
+        fadeOverlay.style.transition = 'opacity 0.5s ease-in-out';
+        fadeOverlay.style.zIndex = '9999';
+        document.body.appendChild(fadeOverlay);
+        
+        // Avvia la musica direttamente
+        document.querySelector('body').classList.add('user-interacted');
+        musicStarted = true;
+        
+        try {
+            // Ferma qualsiasi altra traccia
+            audioSystem.stopAllTracks();
+            
+            // Imposta il volume a 0 per il fade-in
+            audioSystem.mainTheme.volume = 0;
+            
+            // Riproduci direttamente
+            audioSystem.mainTheme.play()
+                .then(() => {
+                    console.log('Musica avviata con successo al click su "Sono pronto"');
+                    audioSystem.currentTrack = audioSystem.mainTheme;
+                })
+                .catch(error => {
+                    console.error('Errore nella riproduzione:', error);
+                });
+        } catch (error) {
+            console.error('Errore nella riproduzione forzata:', error);
+        }
+        
+        // Esegui il fade-out
+        fadeOverlay.style.opacity = '1';
+        
+        // Dopo il fade-out, cambia schermata e avvia il fade-in
+        setTimeout(() => {
+            // Nascondi la schermata di benvenuto
+            welcomeScreen.style.display = 'none';
+            
+            // Mostra l'header e il menu principale
+            header.classList.remove('hidden');
+            mainMenu.classList.remove('hidden');
+            
+            // Esegui il fade-in dello schermo
+            fadeOverlay.style.opacity = '0';
+            
+            // Esegui il fade-in della musica
+            let volume = 0;
+            const fadeInterval = setInterval(() => {
+                volume += 0.05;
+                if (volume >= 1) {
+                    audioSystem.mainTheme.volume = 1;
+                    clearInterval(fadeInterval);
+                    
+                    // Rimuovi l'overlay dopo il fade-in
+                    setTimeout(() => {
+                        document.body.removeChild(fadeOverlay);
+                    }, 500);
+                } else {
+                    audioSystem.mainTheme.volume = volume;
+                }
+            }, 50);
+        }, 500); // Attendi 500ms per il fade-out prima di cambiare schermata
+     });
+    
+    // Inizializza gli slider del volume
+    const musicVolumeSlider = document.getElementById('music-volume');
+    const sfxVolumeSlider = document.getElementById('sfx-volume');
+    
+    // Imposta i valori iniziali degli slider (convertendo da logaritmico a lineare)
+    musicVolumeSlider.value = convertToLinearValue(audioSystem.musicVolume);
+    sfxVolumeSlider.value = convertToLinearValue(audioSystem.sfxVolume);
+    
+    // Funzione per convertire il valore dello slider in una scala logaritmica per il volume
+    function convertToLogarithmicVolume(value) {
+        // Usa una curva esponenziale per rendere le variazioni più percettibili
+        // Questo dà più precisione ai livelli bassi di volume
+        return value <= 0 ? 0 : Math.pow(value, 2.5);
+    }
+    
+    // Funzione per convertire il volume logaritmico in valore lineare per lo slider
+    function convertToLinearValue(volume) {
+        // Inverso della funzione precedente
+        return volume <= 0 ? 0 : Math.pow(volume, 1/2.5);
+    }
+    
+    // Gestisci i cambiamenti del volume della musica
+    musicVolumeSlider.addEventListener('input', function() {
+        const linearValue = parseFloat(this.value);
+        audioSystem.musicVolume = convertToLogarithmicVolume(linearValue);
+        
+        // Aggiorna il volume della traccia corrente se esiste
+        if (audioSystem.currentTrack) {
+            audioSystem.currentTrack.volume = audioSystem.musicVolume;
+        }
+    });
+    
+    // Gestisci i cambiamenti del volume degli effetti sonori
+    sfxVolumeSlider.addEventListener('input', function() {
+        const linearValue = parseFloat(this.value);
+        audioSystem.sfxVolume = convertToLogarithmicVolume(linearValue);
+    });
+    
+    // Elementi DOM
+    // mainMenu è già stato dichiarato sopra
     const gameArea = document.getElementById('game-area');
     const documentation = document.getElementById('documentation');
     const credits = document.getElementById('credits');
@@ -423,28 +916,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Funzione per creare particelle sui bottoni
     function createButtonParticles(button, color) {
+        // Genera particelle solo se si è in partita, non in pausa e la scheda è visibile
+        if (document.hidden || !gameActive || (typeof isPaused !== 'undefined' && isPaused) || animationState !== 'game') {
+            return;
+        }
         const rect = button.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
-        // Spawn overlay UI particles for immediate feedback (menu)
-        if (typeof spawnUIParticle === 'function') {
-            for (let i = 0; i < 12; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = Math.random() * 26 + 6;
-                const px = x + Math.cos(angle) * distance;
-                const py = y + Math.sin(angle) * distance;
-                const p = spawnUIParticle(px, py, 'click');
-                if (p) {
-                    p.color = color || p.color;
-                    p.direction = { x: (Math.cos(angle) * (0.6 + Math.random())), y: (Math.sin(angle) * (0.6 + Math.random())) };
-                    p.size = 1.5 + Math.random() * 3;
-                    p.life = 20 + Math.random() * 20;
-                }
-            }
-        }
-
-        // Also create in-game explosion particles if the game canvas is active
-        if (gameActive) {
+        // Particelle in-game
+        if (!document.hidden && gameActive && animationState === 'game') {
             for (let i = 0; i < 8; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * 30 + 20;
@@ -454,10 +934,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     { x: Math.cos(angle) * 0.5, y: Math.sin(angle) * 0.5 },
                     'explosion'
                 );
-                particle.color = color;
-                particle.size = Math.random() * 3 + 2;
-                particle.life = Math.random() * 20 + 10;
-                particles.push(particle);
+                if (particle) {
+                    particle.color = color;
+                    particle.size = Math.random() * 3 + 2;
+                    particle.life = Math.random() * 20 + 10;
+                    particles.push(particle);
+                }
             }
         }
     }
@@ -492,6 +974,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 showSection('game-area');
                 currentLevel = i;
                 isInfiniteMode = false;
+                // Ferma tutte le tracce e avvia la musica del livello selezionato dal principio
+                audioSystem.stopAllTracks();
+                audioSystem.playLevelMusic(currentLevel);
                 startGame();
             }
         });
@@ -503,6 +988,9 @@ document.addEventListener('DOMContentLoaded', function() {
         showSection('game-area');
         currentLevel = 1; // Inizia sempre dal livello 1
         isInfiniteMode = true;
+        // Ferma tutte le tracce e avvia la musica della modalità infinita dal principio
+        audioSystem.stopAllTracks();
+        audioSystem.playInfiniteMusic();
         startGame();
     });
     
@@ -525,6 +1013,17 @@ document.addEventListener('DOMContentLoaded', function() {
     restartBtn.addEventListener('click', function() {
         hideAllSections();
         showSection('game-area');
+        // Ferma tutte le tracce e avvia la musica corretta per la modalità corrente
+        audioSystem.stopAllTracks();
+        if (isInfiniteMode) {
+            audioSystem.playInfiniteMusic();
+        } else {
+            audioSystem.playLevelMusic(currentLevel);
+        }
+        // Forza il messaggio corrente a 2/2 e bloccalo, così ripartiamo puliti
+        if (window.dialogSystem && typeof dialogSystem.skipToLastAndBlock === 'function') {
+            dialogSystem.skipToLastAndBlock();
+        }
         startGame();
     });
     
@@ -532,6 +1031,14 @@ document.addEventListener('DOMContentLoaded', function() {
     nextLevelBtn.addEventListener('click', function() {
         hideAllSections();
         showSection('game-area');
+        // Ferma tutte le tracce e avvia la musica corretta per la modalità corrente
+        // L'utente ha già interagito con la pagina a questo punto
+        audioSystem.stopAllTracks();
+        if (isInfiniteMode) {
+            audioSystem.playInfiniteMusic();
+        } else {
+            audioSystem.playLevelMusic(currentLevel);
+        }
         startGame();
     });
     
@@ -539,11 +1046,43 @@ document.addEventListener('DOMContentLoaded', function() {
         hideAllSections();
         showSection('level-select');
         updateLevelButtons();
+        
+        // Ferma la musica di vittoria e riproduci la musica del menu
+        audioSystem.stopAllTracks();
+        audioSystem.playMainTheme();
     });
     
     // Event listeners per i controlli di gioco
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+
+    // Pausa automatica quando la scheda cambia visibilità
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Metti il gioco in pausa se attivo e non già in pausa
+            if (gameActive && !isPaused) {
+                togglePause();
+                wasPausedByVisibility = true;
+            }
+            // Pausa la traccia audio corrente
+            if (audioSystem.currentTrack && !audioSystem.currentTrack.paused) {
+                try { audioSystem.currentTrack.pause(); } catch (e) {}
+                audioSystem._pausedByVisibility = true;
+            }
+        } else {
+            // Restare in pausa finché l'utente non riprende manualmente
+            wasPausedByVisibility = false;
+            // Riprendi la musica dal punto in cui era stata fermata (se fermata per visibilità)
+            if (audioSystem._pausedByVisibility && audioSystem.currentTrack && audioSystem.currentTrack.paused) {
+                try { audioSystem.currentTrack.play(); } catch (e) {}
+                audioSystem._pausedByVisibility = false;
+            }
+            // Non ripartire la musica automaticamente; verrà ripresa su resume se necessario
+        }
+    });
+    
+    // Variabile per tenere traccia se la musica è già stata avviata
+    let musicStarted = false;
     
         // Carica le immagini
     loadImages();
@@ -798,9 +1337,13 @@ function checkPowerupCollisions() {
                 remainingBullets += 10;
             } else if (p.type === 'shield_timed') {
                 spaceship.shieldUntil = Date.now() + 5000; // 5 secondi
+                // Riproduci effetto sonoro scudo temporaneo
+                audioSystem.playSFX('temporaryShield');
             } else if (p.type === 'shield_once') {
                 if (spaceship.permanentShields < 10) { // Massimo 10 scudi permanenti
                     spaceship.permanentShields++;
+                    // Riproduci effetto sonoro scudo permanente
+                    audioSystem.playSFX('shield');
                 }
             }
             updateUI();
@@ -881,10 +1424,34 @@ function backToMenu() {
         go.style.backgroundImage = '';
         go.classList.remove('bg-image-mode', 'bg-cover');
     }
+    
+    // Ferma tutte le tracce audio e riproduci il tema principale o mantieni la musica segreta se attiva
+    audioSystem.stopAllTracks();
+    if (secretMusicActive) {
+        audioSystem.playSecretTrack();
+    } else {
+        audioSystem.playMainTheme();
+    }
+    
+    // Se siamo in modalità infinita, resetta la flag
+    isInfiniteMode = false;
+    
+    // Disabilita gli effetti sonori quando si torna al menu
+    audioSystem.isInGame = false;
 
     // Reset forzato del sistema di dialogo
     if (window.dialogSystem) {
+        // Prima forza 2/2 di qualsiasi dialogo precedente e chiudi
+        if (typeof dialogSystem.skipToLastAndBlock === 'function') {
+            dialogSystem.skipToLastAndBlock();
+        }
+        // Poi pulizia totale
         dialogSystem.forceComplete();
+    }
+
+    // Reset totale del dialogo segreto, se presente
+    if (typeof window.resetSecretDialog === 'function') {
+        window.resetSecretDialog();
     }
 
     showSection('main-menu');
@@ -905,6 +1472,7 @@ const images = {
     fire: new Image(),
     enemyShip: new Image(),
     shieldIcon: new Image(),
+    tempShieldIcon: new Image(),
     planets: [] // immagini opzionali per i pianeti: img/planet_X.PNG
 };
 
@@ -981,13 +1549,13 @@ function drawStars() {
 function loadImages() {
     images.spaceship.src = 'img/spaceship.png';
     images.meteorite.src = 'img/meteor.png';
-images.fire.src = 'img/fire.svg';
-    // Enemy image (user will add img/Enemy.png)
+    images.fire.src = 'img/fire.svg';
     images.enemyShip.src = 'img/Enemy.png';
     images.enemyShip.onerror = () => { images.enemyShip._failed = true; };
     
-    // Icona scudo per UI (SVG inline blu)
-    images.shieldIcon.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="%2300bfff"/><stop offset="100%" stop-color="%230066cc"/></linearGradient></defs><path d="M32 4l22 8v14c0 16-10 26-22 34C20 52 10 42 10 26V12l22-8z" fill="url(%23g)" stroke="%230099ff" stroke-width="2"/></svg>';
+    // Icone scudo PNG (relative to index.html document root)
+    images.shieldIcon.src = 'img/Shield.png';
+    images.tempShieldIcon.src = 'img/TempShield.png';
     
 
     
@@ -999,11 +1567,11 @@ images.fire.src = 'img/fire.svg';
     // Sfondo spaziale
     images.background.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="%23000"/><circle cx="100" cy="100" r="1" fill="%23FFF"/><circle cx="200" cy="150" r="1" fill="%23FFF"/><circle cx="300" cy="200" r="1" fill="%23FFF"/><circle cx="400" cy="300" r="1" fill="%23FFF"/><circle cx="500" cy="100" r="1" fill="%23FFF"/><circle cx="600" cy="200" r="1" fill="%23FFF"/><circle cx="700" cy="300" r="1" fill="%23FFF"/><circle cx="150" cy="400" r="1" fill="%23FFF"/><circle cx="250" cy="500" r="1" fill="%23FFF"/><circle cx="350" cy="100" r="1" fill="%23FFF"/><circle cx="450" cy="200" r="1" fill="%23FFF"/><circle cx="550" cy="300" r="1" fill="%23FFF"/><circle cx="650" cy="400" r="1" fill="%23FFF"/><circle cx="750" cy="500" r="1" fill="%23FFF"/></svg>';
 
-    // Immagini opzionali dei pianeti: planet_1.PNG .. planet_6.PNG
+    // Immagini opzionali dei pianeti: Planet_1.png .. Planet_6.png (nome con maiuscola nel repo)
     images.planets = [];
     for (let i = 1; i <= 6; i++) {
         const img = new Image();
-        img.src = `img/planet_${i}.PNG`;
+        img.src = `img/Planet_${i}.png`;
         img.onerror = () => { img._failed = true; };
         images.planets.push(img);
     }
@@ -1011,11 +1579,25 @@ images.fire.src = 'img/fire.svg';
 
 // Avvio del gioco
 function startGame() {
+    // Inizializza il sistema audio se non è già stato fatto
+    if (!audioSystem.initialized) {
+        audioSystem.init();
+        audioSystem.initialized = true;
+    }
+    
+    // Abilita gli effetti sonori durante il gioco
+    audioSystem.isInGame = true;
+
     // Reset sfondo a colore normale ad ogni nuova partita
     resetBackground();
     // Disabilita input e pulisci i tasti finché non parte il gameplay
     inputEnabled = false;
     clearGameKeys();
+    
+    // Imposta lo stato di fade-in
+    animationState = 'fade-in';
+    fadeInProgress = 0;
+    animationStartTime = Date.now();
     // Reset del cooldown ESC
     lastEscTime = 0;
 
@@ -1124,6 +1706,20 @@ function startTakeoffAnimation() {
     clearGameKeys();
     animationProgress = 0;
     animationStartTime = Date.now();
+    // Reset guard per dialogo post-decollo
+    dialogStartedAfterTakeoff = false;
+    
+    // Abilita gli effetti sonori durante l'animazione di decollo
+    audioSystem.isInGame = true;
+    
+    // Avvia la musica del livello o della modalità infinita solo se l'utente ha già interagito con la pagina
+    if (audioSystem.currentTrack) {
+        if (isInfiniteMode) {
+            audioSystem.playInfiniteMusic();
+        } else {
+            audioSystem.playLevelMusic(currentLevel);
+        }
+    }
     
     // Configurazione iniziale del pianeta
     planet.x = canvas.width / 2;
@@ -1150,6 +1746,14 @@ function startLandingAnimation() {
     clearGameKeys();
     animationProgress = 0;
     animationStartTime = Date.now();
+    
+    // Disabilita gli effetti sonori durante l'animazione di atterraggio
+    audioSystem.isInGame = false;
+    
+    // Riproduci la musica di vittoria solo se l'utente ha già interagito con la pagina
+    if (audioSystem.currentTrack) {
+        audioSystem.playVictory();
+    }
     
     // Memorizza stato iniziale della navicella per un lerp preciso
     landingStart.shipX = spaceship.x;
@@ -1212,8 +1816,16 @@ function startGameLoop() {
 
 // Aggiornamento dell'interfaccia utente
 function updateUI() {
-    document.getElementById('current-level').textContent = isInfiniteMode ? "∞" : currentLevel;
-    document.getElementById('current-pizza').textContent = pizzaTypes[isInfiniteMode ? 6 : currentLevel - 1];
+    // In modalità infinita, nascondiamo le informazioni sul livello e sulla pizza
+    if (isInfiniteMode) {
+        document.getElementById('current-level').parentElement.style.display = 'none';
+        document.getElementById('current-pizza').parentElement.style.display = 'none';
+    } else {
+        document.getElementById('current-level').parentElement.style.display = '';
+        document.getElementById('current-pizza').parentElement.style.display = '';
+        document.getElementById('current-level').textContent = currentLevel;
+        document.getElementById('current-pizza').textContent = pizzaTypes[currentLevel - 1];
+    }
     
     // Mostra il punteggio solo in modalità infinita
     const scoreElement = document.getElementById('score');
@@ -1222,8 +1834,45 @@ function updateUI() {
     if (isInfiniteMode) {
         scoreElement.textContent = score;
         scoreContainer.style.display = 'inline-block';
+        
+        // Mostra il punteggio più alto e la fase più alta nella schermata di gioco
+        const highScoreWrapper = document.getElementById('high-score-wrapper');
+        const highScoreElement = document.getElementById('game-high-score');
+        const highestPhaseWrapper = document.getElementById('highest-phase-wrapper');
+        const highestPhaseElement = document.getElementById('game-highest-phase');
+        
+        if (highScoreWrapper && highScoreElement) {
+            highScoreWrapper.style.display = 'inline-block';
+            highScoreElement.textContent = highScore;
+            
+            // Posiziona il record in alto al centro
+            highScoreWrapper.style.position = 'absolute';
+            highScoreWrapper.style.top = '10px';
+            highScoreWrapper.style.left = '50%';
+            highScoreWrapper.style.transform = 'translateX(-50%)';
+            highScoreWrapper.style.zIndex = '100';
+        }
+        
+        if (highestPhaseWrapper && highestPhaseElement) {
+            highestPhaseWrapper.style.display = 'inline-block';
+            highestPhaseElement.textContent = highestPhase + 1;
+            
+            // Posiziona la fase record in alto al centro sotto il record
+            highestPhaseWrapper.style.position = 'absolute';
+            highestPhaseWrapper.style.top = '40px';
+            highestPhaseWrapper.style.left = '50%';
+            highestPhaseWrapper.style.transform = 'translateX(-50%)';
+            highestPhaseWrapper.style.zIndex = '100';
+        }
     } else {
         scoreContainer.style.display = 'none';
+        
+        // Nascondi il punteggio più alto e la fase più alta nella schermata di gioco
+        const highScoreWrapper = document.getElementById('high-score-wrapper');
+        const highestPhaseWrapper = document.getElementById('highest-phase-wrapper');
+        
+        if (highScoreWrapper) highScoreWrapper.style.display = 'none';
+        if (highestPhaseWrapper) highestPhaseWrapper.style.display = 'none';
     }
 
     // Mostra/nascondi indicatore Fase (solo in modalità infinita)
@@ -1323,6 +1972,10 @@ function ensureSafeSize(size, minSize = 0.1) {
 }
 
 function createParticle(x, y, direction, type = 'thruster') {
+    // Consenti creazione particelle solo durante la partita, non in pausa e con scheda visibile
+    if (document.hidden || !gameActive || (typeof isPaused !== 'undefined' && isPaused)) {
+        return null;
+    }
     let particle;
     if (particlePool.length > 0) {
         particle = particlePool.pop();
@@ -1343,6 +1996,14 @@ function createParticle(x, y, direction, type = 'thruster') {
         particle.direction = direction || { x: (Math.random() - 0.5) * 2, y: 1.8 };
         particle.heat = Math.random(); // Fattore di calore per colore
         particle.intensity = Math.random() * 0.8 + 0.2; // Intensità luminosa
+    } else if (type === 'polvere') {
+        // Particelle di polvere per l'accelerazione
+        particle.size = ensureSafeSize(Math.random() * 2 + 0.5); // Particelle più piccole
+        particle.speed = Math.random() * 4 + 3; // Velocità più alta
+        particle.life = Math.random() * 40 + 25; // Vita più lunga
+        particle.direction = direction || { x: (Math.random() - 0.5) * 2, y: 1.8 };
+        particle.heat = 0.8 + Math.random() * 0.2; // Fattore di calore per colore (più verso il bianco/grigio)
+        particle.intensity = Math.random() * 0.6 + 0.2; // Intensità luminosa più bassa
     } else if (type === 'explosion') {
         particle.size = Math.random() * 3 + 2;
         particle.speed = Math.random() * 4 + 2.5;
@@ -1382,8 +2043,8 @@ function updateParticles() {
         }
     }
     
-    // Aggiungi nuove particelle se il propulsore è attivo - MIGLIORATO
-    if (spaceship.thrusterActive) {
+    // Aggiungi nuove particelle del propulsore SOLO se in partita, non in pausa e in gameplay
+    if (gameActive && !(typeof isPaused !== 'undefined' && isPaused) && animationState === 'game' && spaceship.thrusterActive) {
         // Calcola la posizione di emissione in base alla rotazione della navicella
         const emitX = spaceship.x + spaceship.width / 2;
         const emitY = spaceship.y + spaceship.height;
@@ -1408,21 +2069,32 @@ function updateParticles() {
         // NON generare particelle quando ci si muove verso il basso
         
         // Particelle propulsore ottimizzate per evitare lag
-        if (particles.length < 80) { // Ridotto drasticamente il limite particelle da 200 a 80
-            // Ridotto il numero di particelle per migliorare le prestazioni
-            const particleCount = Math.floor(Math.random() * 5) + 3; // 3-7 particelle per frame (ridotto da 8-19)
-            for (let i = 0; i < particleCount; i++) {
+    if (particles.length < 120) { // Aumentato il limite per permettere più particelle durante l'accelerazione
+        // Calcola il numero di particelle in base all'accelerazione
+        let particleCount;
+        if (gameKeys.space && isInfiniteMode && spaceship.dashActive) {
+            // Più particelle durante l'accelerazione nella modalità infinita
+            particleCount = Math.floor(Math.random() * 8) + 7; // 7-14 particelle per frame durante l'accelerazione
+        } else {
+            // Numero normale di particelle
+            particleCount = Math.floor(Math.random() * 5) + 3; // 3-7 particelle per frame
+        }
+        for (let i = 0; i < particleCount; i++) {
                 const spreadX = (Math.random() - 0.5) * 25; // Spread orizzontale ancora più ampio (da 20 a 25)
                 const spreadY = (Math.random() - 0.5) * 12; // Spread verticale aumentato (da 8 a 12)
-                particles.push(createParticle(
+                // Usa il tipo 'polvere' durante l'accelerazione, altrimenti 'thruster'
+                const particleType = (gameKeys.space && isInfiniteMode && spaceship.dashActive) ? 'polvere' : 'thruster';
+                
+                const p = createParticle(
                     emitX + spreadX, 
                     emitY + spreadY,
                     { 
-                        x: dirX + (Math.random() - 0.5) * 0.8, // Aumentata variazione velocità X (da 0.6 a 0.8)
-                        y: dirY + Math.random() * 1.0 + 0.6  // Aumentata velocità Y (da 0.8+0.5 a 1.0+0.6)
+                        x: dirX + (Math.random() - 0.5) * 0.8,
+                        y: dirY + Math.random() * 1.0 + 0.6
                     },
-                    'thruster'
-                ));
+                    particleType
+                );
+                if (p) particles.push(p);
             }
         }
     }
@@ -1431,6 +2103,8 @@ function updateParticles() {
 // Loop principale del gioco
 function gameUpdate() {
     if (!gameActive) return;
+    // Pausa hard quando la scheda è nascosta per evitare spawn particelle e avanzamento
+    if (document.hidden) return;
     
     // Aggiornamento delle stelle animate
     updateStars();
@@ -1493,11 +2167,27 @@ function performGameOverUI() {
     clearGameKeys();
     // Reset sfondo a colore normale alla sconfitta
     resetBackground();
+
+    // Reset immediato dei dialoghi (sia sistema principale che segreto)
+    if (window.dialogSystem && typeof dialogSystem.closeOnDefeat === 'function') {
+        dialogSystem.closeOnDefeat();
+    }
+    if (typeof window.resetSecretDialog === 'function') {
+        window.resetSecretDialog();
+    }
+
+    // Disabilita gli effetti sonori quando il gioco termina
+    audioSystem.isInGame = false;
+    // Riproduci la musica di sconfitta
+    audioSystem.playLost();
     // Aggiornamento dell'interfaccia di game over
     document.getElementById('final-score').textContent = score;
     if (isInfiniteMode) {
         document.getElementById('final-level-label').textContent = 'Fase raggiunta:';
         document.getElementById('final-level').textContent = infinitePhase + 1;
+        
+        // Salva il punteggio più alto se in modalità infinita
+        saveHighScore();
     } else {
         document.getElementById('final-level-label').textContent = 'Livello raggiunto:';
         document.getElementById('final-level').textContent = currentLevel;
@@ -1505,7 +2195,7 @@ function performGameOverUI() {
     // Mostra immagine di sconfitta, se presente
     const overImg = document.getElementById('game-over-image');
     if (overImg) {
-        overImg.src = 'img/Lost.Png';
+        overImg.src = 'img/Lost.PNG';
         overImg.alt = 'Hai perso';
     }
     // In modalità infinita, riavvia sempre dal livello 1
@@ -1516,7 +2206,7 @@ function performGameOverUI() {
     document.getElementById('game-area').classList.add('hidden');
     const overSection = document.getElementById('game-over');
     overSection.classList.add('bg-image-mode', 'bg-cover');
-    overSection.style.backgroundImage = "url('img/Lost.Png')";
+    overSection.style.backgroundImage = "url('img/Lost.PNG')";
     showSection('game-over');
 }
 
@@ -1538,12 +2228,14 @@ function updateShipExplosionAnimation() {
                 },
                 'shipExplosion'
             );
-            // Personalizza le particelle per un effetto più drammatico
-            particle.size = Math.random() * 6 + 4; // Particelle più grandi
-            particle.life = Math.random() * 45 + 30; // Durata maggiore
-            particle.color = Math.random() < 0.4 ? '#ff3300' : (Math.random() < 0.6 ? '#ffaa00' : '#ffff00');
-            particle.intensity = Math.random() * 0.9 + 0.8; // Più luminose
-            particles.push(particle);
+            if (particle) {
+                // Personalizza le particelle per un effetto più drammatico
+                particle.size = Math.random() * 6 + 4;
+                particle.life = Math.random() * 45 + 30;
+                particle.color = Math.random() < 0.4 ? '#ff3300' : (Math.random() < 0.6 ? '#ffaa00' : '#ffff00');
+                particle.intensity = Math.random() * 0.9 + 0.8;
+                particles.push(particle);
+            }
         }
     }
     shipExplosionState.r = shipExplosionState.maxR * (0.6 + 0.4 * easeOutCubic(t));
@@ -1610,8 +2302,11 @@ if (animationProgress >= 1) {
         lastAmmoSpawn = gameStartTime;
         lastTimedShieldSpawn = gameStartTime;
         
-        // Avvia la sequenza di dialogo
-        startDialogAfterTakeoff();
+        // Avvia la sequenza di dialogo una sola volta
+        if (!dialogStartedAfterTakeoff) {
+            dialogStartedAfterTakeoff = true;
+            startDialogAfterTakeoff();
+        }
         // Posizionamento finale della navicella per il gameplay
         spaceship.x = canvas.width / 2 - spaceship.width / 2;
         spaceship.y = canvas.height - spaceship.height - 20;
@@ -1845,6 +2540,9 @@ function updateSpaceshipPosition() {
                 spaceship.lastShot = Date.now();
                 remainingBullets--;
                 updateUI();
+                
+                // Riproduci effetto sonoro proiettile
+                audioSystem.playSFX('projectile');
             }
         }
     }
@@ -1856,6 +2554,11 @@ function updateSpaceshipPosition() {
             spaceship.maxSpeed *= 1.5;
             spaceship.dashActive = true;
             spaceship.dashEndTime = Date.now() + 500; // 0.5 secondi di scatto
+            
+            // Accelera la musica
+            if (audioSystem.currentTrack && audioSystem.currentTrack === audioSystem.infiniteTrack) {
+                audioSystem.currentTrack.playbackRate = audioSystem.acceleratedPlaybackRate;
+            }
         }
     }
 
@@ -1863,6 +2566,11 @@ function updateSpaceshipPosition() {
     if (spaceship.dashActive && Date.now() >= spaceship.dashEndTime) {
         spaceship.maxSpeed = 6; // Reset alla velocità normale
         spaceship.dashActive = false;
+        
+        // Ripristina la velocità normale della musica
+        if (audioSystem.currentTrack && audioSystem.currentTrack === audioSystem.infiniteTrack) {
+            audioSystem.currentTrack.playbackRate = audioSystem.normalPlaybackRate;
+        }
     }
 
     // Shockwave burst (tasto O, livello 3+)
@@ -1878,6 +2586,9 @@ function updateSpaceshipPosition() {
                 spaceship.lastShockwave = now;
                 remainingBullets -= shockCost;
                 updateUI();
+                
+                // Riproduci effetto sonoro AOE
+                audioSystem.playSFX('aoe');
             }
         }
     }
@@ -2031,6 +2742,9 @@ function checkCollisions() {
                 spawnExplosion(cx, cy, Math.max(meteorite.width, meteorite.height));
                 meteorites.splice(j, 1);
                 
+                // Riproduci effetto sonoro distruzione meteorite
+                audioSystem.playSFX('meteor');
+                
                 // Incrementa il punteggio solo in modalità infinita
                 if (isInfiniteMode) {
                     score += 10 * currentLevel;
@@ -2066,6 +2780,13 @@ function checkCollisions() {
                 const cy = meteorite.y + meteorite.height/2;
                 spawnExplosion(cx, cy, Math.max(meteorite.width, meteorite.height));
                 
+                // Riproduci effetto sonoro scudo appropriato
+                if (hasTimedShield) {
+                    audioSystem.playSFX('temporaryShield');
+                } else {
+                    audioSystem.playSFX('shield');
+                }
+                
                 // Punti ridotti quando si usa lo scudo
                 if (hasTimedShield && isInfiniteMode) {
                     score += 5 * currentLevel; // Punti con scudo temporaneo
@@ -2093,6 +2814,9 @@ function checkCollisions() {
                 spaceship.invulnerableUntil = now + 200;
                 spaceship.flashUntil = now + 200;
                 spaceship.hitTime = now;
+                
+                // Riproduci effetto sonoro colpo
+                audioSystem.playSFX('hit');
 
                 // Effetti particellari per l'impatto
                 const hitX = (shipBox.x + shipBox.width/2 + meteorite.x + meteorite.width/2) / 2;
@@ -2107,9 +2831,11 @@ function checkCollisions() {
                         { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
                         'explosion'
                     );
-                    particle.color = '#ff6600';
-                    particle.life = 30 + Math.random() * 20;
-                    particles.push(particle);
+                    if (particle) {
+                        particle.color = '#ff6600';
+                        particle.life = 30 + Math.random() * 20;
+                        particles.push(particle);
+                    }
                 }
 
                 // Game over
@@ -2155,9 +2881,11 @@ function checkCollisions() {
                     { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
                     'explosion'
                 );
-                particle.color = '#ff6600';
-                particle.life = 30 + Math.random() * 20;
-                particles.push(particle);
+                if (particle) {
+                    particle.color = '#ff6600';
+                    particle.life = 30 + Math.random() * 20;
+                    particles.push(particle);
+                }
             }
 
             updateUI();
@@ -2171,6 +2899,7 @@ function spawnExplosion(x, y, size) {
     const count = Math.min(120, Math.max(40, Math.floor(size * 3.5)));
     for (let k = 0; k < count; k++) {
         const particle = createParticle(x, y, null, 'explosion');
+        if (!particle) continue;
         // Aumenta dimensione e durata delle particelle
         particle.size = Math.random() * 4.5 + 3;
         particle.life = Math.random() * 35 + 25;
@@ -2190,6 +2919,12 @@ function drawGame() {
     ctx.fillStyle = getCurrentBgColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Overlay nero per il fade-in
+    if (animationState === 'fade-in') {
+        ctx.fillStyle = `rgba(0, 0, 0, ${1 - fadeInProgress})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
     // Disegna le stelle animate
     drawStars();
     
@@ -2200,14 +2935,18 @@ function drawGame() {
     
     // Disegna le particelle con colori realistici - MIGLIORATO
     for (const particle of particles) {
-        if (particle.type === 'thruster') {
+        if (particle.type === 'thruster' || particle.type === 'polvere') {
             // Calcola colore basato su calore e vita
             const lifeRatio = particle.life / 50;
             const heat = particle.heat;
             
             // Colori realistici del propulsore: blu-bianco-giallo-arancione-rosso
             let r, g, b;
-            if (heat < 0.2) {
+            if (particle.type === 'polvere') {
+                // Colori grigi per la polvere
+                const grayValue = 180 + Math.floor(heat * 75); // 180-255 (grigio chiaro)
+                r = g = b = grayValue;
+            } else if (heat < 0.2) {
                 // Blu molto caldo
                 r = Math.floor(100 + heat * 775); // 100-255
                 g = Math.floor(150 + heat * 525); // 150-255
@@ -2409,16 +3148,16 @@ function drawGame() {
             ctx.textBaseline = 'middle';
             ctx.fillText('+10', 0, 0);
         } else if (p.type === 'shield_timed') {
-            // Cerchio blu brillante per scudo temporaneo
-            ctx.fillStyle = 'rgba(100,180,255,0.12)';
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0,150,255,0.95)';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI*2);
-            ctx.stroke();
+            // Usa la texture PNG del TempShield come item da raccogliere
+            if (images.tempShieldIcon && images.tempShieldIcon.complete && images.tempShieldIcon.naturalWidth > 0) {
+                ctx.drawImage(images.tempShieldIcon, -14, -14, 28, 28);
+            } else {
+                // Fallback semplice se l'immagine non è disponibile
+                ctx.fillStyle = '#66c9ff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI*2);
+                ctx.fill();
+            }
         } else if (p.type === 'shield_once') {
             // Piccolo scudo
             ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
@@ -2447,18 +3186,7 @@ if (animationState === 'landing') {
     if (enemyShips.length > 0) {
         drawEnemyShips();
     }
-    // Disegna power-up sopra tutto (bagliore)
-    for (const p of powerups) {
-        if (p.type === 'shield_timed') {
-            ctx.save();
-            ctx.globalAlpha = 0.2;
-            ctx.fillStyle = 'rgba(0,180,255,0.2)';
-            ctx.beginPath();
-            ctx.arc(p.x + 12, p.y + 12, 18, 0, Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
+    // Rimosso bagliore sottostante del power-up scudo temporaneo
 }
 
 // Disegna il pianeta
@@ -2613,6 +3341,9 @@ function showLevelCompleteScreen() {
     gameActive = false;
     if (gameLoop) cancelAnimationFrame(gameLoop);
     
+    // Disabilita gli effetti sonori quando il livello è completato
+    audioSystem.isInGame = false;
+    
     // Mostra la schermata di congratulazioni
     const gameArea = document.getElementById('game-area');
     if (gameArea) gameArea.classList.add('hidden');
@@ -2750,9 +3481,25 @@ function updateLevelButtons() {
         if (isUnlocked) {
             levelButton.classList.remove('locked');
             levelButton.classList.add('unlocked');
+            
+            // Applica colori casuali ai bordi per i livelli sbloccati (come il livello 1)
+            const randomBackground = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+            const randomBorder = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+            const darkerShadow = adjustColor(randomBackground, -30);
+            
+            levelButton.style.backgroundColor = randomBackground;
+            levelButton.style.borderColor = randomBorder;
+            levelButton.style.boxShadow = `0 4px 0 ${darkerShadow}, 0 0 0 2px #000 inset`;
+            levelButton.style.setProperty('--button-shadow-color', darkerShadow);
+            levelButton.style.color = '#ffffff';
         } else {
             levelButton.classList.remove('unlocked');
             levelButton.classList.add('locked');
+            // Resetta gli stili per i livelli bloccati
+            levelButton.style.backgroundColor = '';
+            levelButton.style.borderColor = '';
+            levelButton.style.boxShadow = '';
+            levelButton.style.color = '';
         }
     }
     
@@ -2766,6 +3513,13 @@ function updateLevelButtons() {
 
 // Game over
 function gameOver() {
+    // Salva il punteggio più alto se in modalità infinita
+    if (isInfiniteMode) {
+        saveHighScore();
+    }
+    
+    // Riproduci la musica di game over
+    audioSystem.playLost();
     // Avvia sequenza esplosione invece di mostrare subito la schermata
     startShipExplosion();
 }
@@ -2776,6 +3530,12 @@ function victory() {
     if (gameLoop) cancelAnimationFrame(gameLoop);
     inputEnabled = false;
     clearGameKeys();
+    
+    // Disabilita gli effetti sonori quando il gioco termina
+    audioSystem.isInGame = false;
+    
+    // Riproduci la musica di vittoria
+    audioSystem.playVictory();
     
     // Aggiornamento dell'interfaccia di game over con messaggio di vittoria
     if (isInfiniteMode) {
@@ -2801,6 +3561,27 @@ function togglePause() {
         isPaused = true;
         gameActive = false;
         if (gameLoop) cancelAnimationFrame(gameLoop);
+        // Memorizza inizio pausa per congelare timer scudo temporaneo
+        pauseStartedAt = Date.now();
+        
+        // Abbassa il volume della musica gradualmente quando il gioco è in pausa
+        if (audioSystem.currentTrack) {
+            // Salva il volume corrente per ripristinarlo dopo
+            audioSystem.savedVolume = audioSystem.currentTrack.volume;
+            
+            // Abbassa il volume gradualmente
+            const fadeOutInterval = setInterval(() => {
+                if (audioSystem.currentTrack && audioSystem.currentTrack.volume > 0.3) {
+                    audioSystem.currentTrack.volume -= 0.05;
+                    if (audioSystem.currentTrack.volume <= 0.3) {
+                        audioSystem.currentTrack.volume = 0.3; // Volume minimo durante la pausa
+                        clearInterval(fadeOutInterval);
+                    }
+                } else {
+                    clearInterval(fadeOutInterval);
+                }
+            }, 50);
+        }
         
         // Mostra il pannello di pausa se non esiste
         if (!pausePanel) {
@@ -2823,8 +3604,8 @@ function togglePause() {
             
             newPausePanel.innerHTML = `
                 <h2 style="margin-bottom: 20px; color: #fff;">Gioco in pausa</h2>
-                <button id="resume-btn" class="menu-button menu-play" style="width: 220px; margin: 10px; font-size: 0.8rem;">Riprendi</button>
-                <button id="menu-btn" class="menu-button menu-docs" style="width: 220px; margin: 10px; font-size: 0.8rem;">Torna al menù</button>
+                <button id="resume-btn" class="level-button" style="margin: 10px;">Riprendi</button>
+                <button id="menu-btn" class="level-button" style="margin: 10px;">Torna al menù</button>
             `;
             
             document.getElementById('game-area').appendChild(newPausePanel);
@@ -2850,6 +3631,28 @@ function togglePause() {
                 isPaused = false;
                 const pausePanel = document.getElementById('pause-panel');
                 if (pausePanel) pausePanel.style.display = 'none';
+                
+                // Ripristina il volume normale prima di tornare al menu
+                if (audioSystem.currentTrack && audioSystem.savedVolume) {
+                    const fadeInInterval = setInterval(() => {
+                        if (audioSystem.currentTrack) {
+                            const target = Math.min(1, audioSystem.savedVolume || 1);
+                            if (audioSystem.currentTrack.volume < target) {
+                                const next = Math.min(target, 1, audioSystem.currentTrack.volume + 0.05);
+                                audioSystem.currentTrack.volume = next;
+                                if (audioSystem.currentTrack.volume >= target) {
+                                    audioSystem.currentTrack.volume = target;
+                                    clearInterval(fadeInInterval);
+                                }
+                            } else {
+                                clearInterval(fadeInInterval);
+                            }
+                        } else {
+                            clearInterval(fadeInInterval);
+                        }
+                    }, 50);
+                }
+                
                 backToMenu();
             };
         } else {
@@ -2867,6 +3670,36 @@ function startCountdown() {
         isCountingDown = true;
         let count = 3;
         
+        // Inizia a ripristinare gradualmente il volume durante il countdown
+        if (audioSystem.currentTrack && audioSystem.savedVolume) {
+            // Se la traccia era stata messa in pausa dalla visibilità, riprendi la riproduzione ora
+            if (audioSystem._pausedByVisibility && audioSystem.currentTrack.paused) {
+                try { audioSystem.currentTrack.play(); } catch (e) {}
+                audioSystem._pausedByVisibility = false;
+            }
+            const fadeInInterval = setInterval(() => {
+                if (!isCountingDown) {
+                    clearInterval(fadeInInterval);
+                    return;
+                }
+                if (audioSystem.currentTrack) {
+                    const target = Math.min(1, audioSystem.savedVolume || 1);
+                    if (audioSystem.currentTrack.volume < target) {
+                        const next = Math.min(target, 1, audioSystem.currentTrack.volume + 0.05);
+                        audioSystem.currentTrack.volume = next;
+                        if (audioSystem.currentTrack.volume >= target) {
+                            audioSystem.currentTrack.volume = target;
+                            clearInterval(fadeInInterval);
+                        }
+                    } else {
+                        clearInterval(fadeInInterval);
+                    }
+                } else {
+                    clearInterval(fadeInInterval);
+                }
+            }, 50);
+        }
+        
         function updateCount() {
             if (count > 0) {
                 countdownPanel.style.display = 'block';
@@ -2878,6 +3711,20 @@ function startCountdown() {
                 isPaused = false;
                 isCountingDown = false;
                 gameActive = true;
+                // Congela i timer basati su Date.now() (es. scudo temporaneo)
+                if (pauseStartedAt) {
+                    const delta = Date.now() - pauseStartedAt;
+                    if (spaceship && typeof spaceship.shieldUntil === 'number' && spaceship.shieldUntil > 0) {
+                        spaceship.shieldUntil += delta;
+                    }
+                    pauseStartedAt = null;
+                }
+                
+                // Assicurati che il volume sia completamente ripristinato
+                if (audioSystem.currentTrack && audioSystem.savedVolume) {
+                    audioSystem.currentTrack.volume = audioSystem.savedVolume;
+                }
+                
                 startGameLoop();
             }
         }
@@ -3027,4 +3874,7 @@ function startShipExplosion() {
     shipExplosionState.maxR = 260;
     shipExplosionState.x = spaceship.x + spaceship.width/2;
     shipExplosionState.y = spaceship.y + spaceship.height/2;
+    
+    // Riproduci effetto sonoro morte
+    audioSystem.playSFX('lost');
 }

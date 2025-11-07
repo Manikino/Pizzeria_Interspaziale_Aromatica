@@ -32,18 +32,19 @@ let typingInProgress = false;
 let typingSpeed = 20;
 let dialogShownThisSession = false;
 let inputLocked = false;
+let secretMusicActive = false;
 
 // === ARRAY DIALOGHI PROTAGONISTA/ CAPO ===
 const secretDialogs = [
-    {speaker: "Capo", text: "Ehi piccola, quando hai iniziato a lavorare qui?"},
+    {speaker: "???", text: "Ehi piccola, quando hai iniziato a lavorare qui?"},
     {speaker: "Scimmia", text: "Credo qualche anno fa, ma sembra ieri che ero piccola e inesperta."},
-    {speaker: "Capo", text: "Ah sì? Ricordo quando ti ho vista per la prima volta, con quella curiosità infinita."},
+    {speaker: "???", text: "Ah sì? Ricordo quando ti ho vista per la prima volta, con quella curiosità infinita."},
     {speaker: "Scimmia", text: "Sì, volevo capire tutto subito, anche se facevo pasticci."},
-    {speaker: "Capo", text: "Eppure hai imparato veloce, più di quanto immaginassi."},
+    {speaker: "???", text: "Eppure hai imparato veloce, più di quanto immaginassi."},
     {speaker: "Scimmia", text: "Ero motivata… non volevo deluderti."},
-    {speaker: "Capo", text: "Ricordo ancora il tuo primo incarico. Ti tremavano le mani."},
+    {speaker: "???", text: "Ricordo ancora il tuo primo incarico. Ti tremavano le mani."},
     {speaker: "Scimmia", text: "E io tremo ancora un po', ma ora so cosa fare."},
-    {speaker: "Capo", text: "Hai sempre avuto la testa sulle spalle, anche da piccola."},
+    {speaker: "???", text: "Hai sempre avuto la testa sulle spalle, anche da piccola."},
     {speaker: "Scimmia", text: "Grazie... Significa molto per me."}
 ];
 
@@ -64,7 +65,49 @@ function activateSecretDialog() {
     setTimeout(() => dialogElement.classList.add('active'), 100);
 
     dialogShownThisSession = true;
+    
+    // Attiva la musica segreta solo se l'utente ha già interagito con la pagina
+    if (!secretMusicActive) {
+        secretMusicActive = true;
+        if (audioSystem.currentTrack || document.querySelector('body').classList.contains('user-interacted')) {
+            audioSystem.playSecretTrack();
+        }
+    }
 }
+
+// === RESET TOTALE DIALOGO SEGRETO ===
+window.resetSecretDialog = function() {
+    // Reset flag e stato
+    secretDialogActive = false;
+    dialogShownThisSession = false;
+    currentDialogIndex = 0;
+    typingInProgress = false;
+    inputLocked = false;
+
+    // Ripristina overlay e contenuto UI
+    const dialogElement = document.querySelector('.secret-dialog');
+    const darkOverlay = document.querySelector('.dark-overlay');
+    const dialogText = document.querySelector('.dialog-text');
+    const dialogContinueHint = document.querySelector('.dialog-continue-hint');
+
+    if (dialogElement) {
+        dialogElement.classList.remove('active');
+        dialogElement.style.display = 'none';
+    }
+    if (darkOverlay) {
+        darkOverlay.classList.remove('active');
+        darkOverlay.style.display = 'none';
+    }
+    if (dialogText) {
+        dialogText.innerHTML = '';
+    }
+    if (dialogContinueHint) {
+        dialogContinueHint.style.display = 'none';
+    }
+
+    // Musica segreta non persiste se torniamo al menu o moriamo
+    secretMusicActive = false;
+};
 
 // === FUNZIONE TERMINA DIALOGO ===
 function endSecretDialog() {
@@ -80,6 +123,14 @@ function endSecretDialog() {
         dialogElement.style.display = 'none';
         darkOverlay.style.display = 'none';
     }, 1000);
+    
+    // Torna alla musica principale se non siamo in gioco
+    if (!gameActive) {
+        secretMusicActive = false;
+        if (audioSystem.currentTrack || document.querySelector('body').classList.contains('user-interacted')) {
+            audioSystem.playMainTheme();
+        }
+    }
 }
 
 // === MOSTRA TESTO LETTERA PER LETTERA ===
@@ -97,11 +148,17 @@ function typeDialogText(dialogObj) {
     if (lines.length >= 2) {
         lines.forEach(line => line.remove());
     }
-
+    
+    // Ottieni il nome del giocatore dal localStorage
+    const playerName = localStorage.getItem('playerName') || "Bobo";
+    
     // Genera nuovo paragrafo dall'alto
     const newParagraph = document.createElement('p');
     newParagraph.className = 'dialog-line';
-    newParagraph.innerHTML = `<strong>${dialogObj.speaker}:</strong> `;
+    
+    // Sostituisci "Scimmia" con il nome del giocatore
+    const speakerName = dialogObj.speaker === "Scimmia" ? playerName : dialogObj.speaker;
+    newParagraph.innerHTML = `<strong>${speakerName}:</strong> `;
     dialogText.appendChild(newParagraph);
 
     function addNextLetter() {
@@ -146,6 +203,7 @@ function advanceDialog() {
 // === EVENTI PRINCIPALI ===
 document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
+        // Quando il dialogo segreto è attivo, permetti solo l'avanzamento con SPAZIO
         if (secretDialogActive) {
             if (e.code === 'Space' && !typingInProgress && !inputLocked) {
                 advanceDialog();
@@ -154,16 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-
-        // Gestione Konami Code
-        if (e.key === konamiSequence[konamiIndex]) {
-            konamiIndex++;
-            if (konamiIndex === konamiSequence.length) {
-                konamiIndex = 0;
-                activateSecretDialog();
-            }
-        } else {
-            konamiIndex = 0;
-        }
+        // Nessuna gestione del Konami Code qui: l'attivazione avviene in main.js con gating corretto
     });
 });

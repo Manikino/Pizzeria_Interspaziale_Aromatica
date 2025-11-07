@@ -10,16 +10,50 @@
 </head>
 <body>
     <div class="container">
-        <header>
+        <!-- Schermata iniziale -->
+        <div id="welcome-screen" class="welcome-screen">
+            <div class="welcome-message">
+                <h1>Pronto per essere un Pizzaiolo provetto?</h1>
+            </div>
+            <div class="name-input-container">
+                <input type="text" id="player-name" placeholder="Come ti chiami?" maxlength="20">
+                <button id="start-game" class="start-button">Sono pronto</button>
+            </div>
+        </div>
+
+        <header class="hidden">
             <h1>Pizzeria Interspaziale Aromatica</h1>
             <h2>Missione Spaziale</h2>
         </header>
 
         <!-- Menu principale -->
-        <div id="main-menu" class="main-menu">
-    <button id="btn-docs" class="menu-button menu-docs"><i class="btn-icon"></i>Manuale di Volo</button>
-    <button id="btn-play" class="menu-button menu-play"><i class="btn-icon"></i>Inizia Missione</button>
-    <button id="btn-credits" class="menu-button menu-credits"><i class="btn-icon"></i>Equipaggio</button>
+        <div id="main-menu" class="main-menu hidden">
+    <div class="menu-buttons-container">
+        <button id="btn-docs" class="menu-button menu-docs"><i class="btn-icon"></i>Manuale di Volo</button>
+        <button id="btn-play" class="menu-button menu-play"><i class="btn-icon"></i>Inizia Missione</button>
+        <button id="btn-credits" class="menu-button menu-credits"><i class="btn-icon"></i>Equipaggio</button>
+    </div>
+    
+    <!-- Record modalità infinita -->
+    <div class="high-score-container">
+        <h3>Record Modalità Infinita</h3>
+        <div class="high-score-info">
+            <p>Punteggio più alto: <span id="high-score">0</span></p>
+            <p>Fase più alta: <span id="highest-phase">0</span></p>
+        </div>
+    </div>
+    
+    <!-- Volume controls -->
+    <div class="volume-controls">
+        <div class="volume-control">
+            <label for="music-volume">Musica</label>
+            <input type="range" id="music-volume" min="0" max="1" step="0.01" value="0.7">
+        </div>
+        <div class="volume-control">
+            <label for="sfx-volume">Effetti</label>
+            <input type="range" id="sfx-volume" min="0" max="1" step="0.01" value="0.7">
+        </div>
+    </div>
 </div>
         
         <!-- Selezione livelli -->
@@ -92,6 +126,8 @@
                     <span id="phase-wrapper" style="display:none;">Fase: <span id="phase">1</span></span>
                     <span>Pizza: <span id="current-pizza">Margherita</span></span>
                     <span>Punteggio: <span id="score">0</span></span>
+                    <span id="high-score-wrapper" style="display:none;">Record: <span id="game-high-score">0</span></span>
+                    <span id="highest-phase-wrapper" style="display:none;">Fase record: <span id="game-highest-phase">0</span></span>
                     <div class="bullets-counter">Proiettili: <span id="bullets-count">20</span> <span class="bullet-icon">🔹</span></div>
                     <div class="pause-instruction">Pausa con ESC</div>
                 </div>

@@ -5,15 +5,69 @@ let dialogSystem = {
     messages: [],
     playerResponses: [], // Risposte del player per ogni messaggio NPC
     timeoutId: null,
-    autoCloseTimeout: 3000, // 3 secondi esatti per autoskip
+    autoCloseTimeout: 2000, // 1 secondo per autoskip
     displayStartTime: 0,
     progressBarInterval: null, // Intervallo per aggiornare la barra di progressione
     messageQueue: [], // Coda dei dialoghi da mostrare
     isPlayerResponse: false, // Flag per indicare se il messaggio corrente è una risposta del player
     timeouts: [], // Array per tenere traccia di tutti i timeout attivi
+    currentTypingTimeout: null, // riferimento al timeout del typewriter
+    
+    // Ottiene il nome del giocatore da localStorage o usa un nome predefinito
+    getPlayerName: function() {
+        return localStorage.getItem('playerName') || 'Pilota';
+    },
+
+    // Forza il salto all'ultimo messaggio (2/2) e blocca/chiude il dialogo corrente
+    skipToLastAndBlock: function() {
+        // Cancella timeout in corso
+        if (this.timeoutId) { clearTimeout(this.timeoutId); this.timeoutId = null; }
+        if (this.progressBarInterval) { clearInterval(this.progressBarInterval); this.progressBarInterval = null; }
+        if (this.currentTypingTimeout) { clearTimeout(this.currentTypingTimeout); this.currentTypingTimeout = null; }
+
+        // Se non c'è coda, niente da fare
+        if (!this.messageQueue || this.messageQueue.length === 0) {
+            // assicurati comunque di nascondere la UI
+            const dialogBox = document.getElementById('dialog-box');
+            const dialogText = document.getElementById('dialog-text');
+            if (dialogText) dialogText.textContent = '';
+            if (dialogBox) {
+                dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
+                dialogBox.classList.add('dialog-hidden');
+            }
+            this.active = false;
+            return;
+        }
+
+        // Porta lo stato a 2/2 per il messaggio corrente
+        this.currentMessage = Math.min(this.messageQueue.length - 1, this.currentMessage);
+        this.isPlayerResponse = true; // 2/2 è la risposta del player
+
+        // Mostra al volo e poi chiudi
+        const dialogBox = document.getElementById('dialog-box');
+        const dialogText = document.getElementById('dialog-text');
+        if (dialogText) {
+            dialogText.textContent = '';
+        }
+        if (dialogBox) {
+            dialogBox.classList.remove('dialog-hidden');
+            dialogBox.classList.add('dialog-visible');
+        }
+        // Stampa immediatamente il testo completo senza typewriter
+        const currentDialog = this.messageQueue[this.currentMessage];
+        const message = currentDialog ? currentDialog.player : '';
+        if (dialogText && message) {
+            dialogText.textContent = message;
+        }
+
+        // Chiudi subito e pulisci ogni cosa
+        this.end();
+    },
 
     // Metodo per forzare la conclusione e il reset del dialogo
     forceComplete: function() {
+        console.log('[DEBUG] forceComplete: pulizia totale del sistema di dialogo');
+        
         // Cancella tutti i timeout
         if (this.timeouts && this.timeouts.length > 0) {
             this.timeouts.forEach(timeout => clearTimeout(timeout));
@@ -27,24 +81,32 @@ let dialogSystem = {
             clearInterval(this.progressBarInterval);
             this.progressBarInterval = null;
         }
+        if (this.currentTypingTimeout) {
+            clearTimeout(this.currentTypingTimeout);
+            this.currentTypingTimeout = null;
+        }
 
-        // Resetta tutte le variabili di stato
+        // Pulisci la UI una sola volta
+        let dialogBox = document.getElementById('dialog-box');
+        let dialogText = document.getElementById('dialog-text');
+        if (dialogBox) {
+            dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
+            dialogBox.classList.add('dialog-hidden');
+        }
+        if (dialogText) {
+            dialogText.textContent = '';
+        }
+
+        // Resetta TUTTE le variabili di stato
         this.active = false;
         this.currentMessage = 0;
         this.messageQueue = [];
         this.isPlayerResponse = false;
         this.displayStartTime = 0;
-
-        // Nascondi e resetta la UI del dialogo
-        const dialogBox = document.getElementById('dialog-box');
-        if (dialogBox) {
-            dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
-            dialogBox.classList.add('dialog-hidden');
-            const dialogText = document.getElementById('dialog-text');
-            if (dialogText) {
-                dialogText.textContent = '';
-            }
-        }
+        this.dialogStartTime = 0;
+        this.pauseStartTime = 0;
+        this.pausedTime = 0;
+        this.isPaused = false;
 
         // Sblocca il gameplay
         if (typeof resumeMeteorSpawn === 'function') {
@@ -62,106 +124,101 @@ let dialogSystem = {
     messagePools: {
         1: [
             {
-                npc: "Chef: Benvenuto nello spazio, pilota! Dobbiamo consegnare questa Margherita prima che si raffreddi!",
-                player: "Pilota: Sarà consegnata calda e in tempo record, Chef!"
+                npc: "Chef: Benvenuto nello spazio, {playerName}! Dobbiamo consegnare questa Margherita prima che si raffreddi!",
+                player: "{playerName}: Sarà consegnata calda e in tempo record, Chef!"
             },
             {
-                npc: "Chef: Attenzione ai meteoriti, non possiamo permetterci di perdere un'altra navicella...",
-                player: "Pilota: Tranquillo, ho riflessi fulminei. Nessun meteorite mi colpirà!"
+                npc: "Chef: Attenzione ai meteoriti, {playerName}, non possiamo permetterci di perdere un'altra navicella...",
+                player: "{playerName}: Tranquillo, ho riflessi fulminei. Nessun meteorite mi colpirà!"
             },
             {
                 npc: "Bob: PIZZAAAAA SPAZIALEEEE! AHAHAH! GUARDA COME VOLO!",
-                player: "Pilota: Chi è quel matto? E come fa a sopravvivere nello spazio senza tuta?!"
+                player: "{playerName}: Chi è quel matto? E come fa a sopravvivere nello spazio senza tuta?!"
             }
         ],
         2: [
             {
-                npc: "Chef: Ottimo lavoro con la Margherita! Ora abbiamo una Pepperoni da consegnare.",
-                player: "Pilota: La Pepperoni è la mia specialità, sarà un gioco da ragazzi!"
+                npc: "Chef: Ottimo lavoro con la Margherita, {playerName}! Ora abbiamo una Pepperoni da consegnare.",
+                player: "{playerName}: La Pepperoni è la mia specialità, sarà un gioco da ragazzi!"
             },
             {
-                npc: "Chef: Ho installato un cannone sulla navicella. Premi P per sparare ai meteoriti!",
-                player: "Pilota: Finalmente! Ora posso difendermi invece di solo schivare!"
+                npc: "Chef: Ho installato un cannone sulla navicella, {playerName}. Premi P per sparare ai meteoriti!",
+                player: "{playerName}: Finalmente! Ora posso difendermi invece di solo schivare!"
             }
         ],
         3: [
             {
-                npc: "Chef: La Super Spaziale è la nostra pizza più prestigiosa! Non deludermi.",
-                player: "Pilota: La consegnerò con la massima cura, parola di pilota spaziale!"
+                npc: "Chef: La Super Spaziale è la nostra pizza più prestigiosa, {playerName}! Non deludermi.",
+                player: "{playerName}: La consegnerò con la massima cura, parola di pilota spaziale!"
             },
             {
-                npc: "Chef: I meteoriti sono più veloci in questa zona. Usa l'onda d'urto con O in caso di emergenza!",
-                player: "Pilota: Grazie per il consiglio, userò l'onda d'urto con saggezza!"
+                npc: "Chef: I meteoriti sono più veloci in questa zona, {playerName}. Usa l'onda d'urto con O in caso di emergenza!",
+                player: "{playerName}: Grazie per il consiglio, userò l'onda d'urto con saggezza!"
             }
         ],
         4: [
             {
-                npc: "Chef: La Quattro Stagioni è molto richiesta su questo pianeta. Fai attenzione!",
-                player: "Pilota: Ogni stagione al suo posto, garantisco una consegna perfetta!"
+                npc: "Chef: La Quattro Stagioni è molto richiesta su questo pianeta, {playerName}. Fai attenzione!",
+                player: "{playerName}: Ogni stagione al suo posto, garantisco una consegna perfetta!"
             },
             {
-                npc: "Chef: Dicono che in questa zona dello spazio ci siano strani fenomeni...",
-                player: "Pilota: Niente può fermare un pilota determinato, nemmeno i fenomeni spaziali!"
+                npc: "Chef: Dicono che in questa zona dello spazio ci siano strani fenomeni, {playerName}...",
+                player: "{playerName}: Niente può fermare un pilota determinato, nemmeno i fenomeni spaziali!"
             }
         ],
         5: [
             {
-                npc: "Chef: La Capricciosa è la preferita degli alieni di questo settore!",
-                player: "Pilota: Gli alieni hanno buon gusto, non li deluderò!"
+                npc: "Chef: La Capricciosa è la preferita degli alieni di questo settore, {playerName}!",
+                player: "{playerName}: Gli alieni hanno buon gusto, non li deluderò!"
             },
             {
-                npc: "Chef: Questa zona è particolarmente pericolosa. Mantieni la concentrazione!",
-                player: "Pilota: Sono nato per le missioni pericolose, Chef. Nessun problema!"
+                npc: "Chef: Questa zona è particolarmente pericolosa, {playerName}. Mantieni la concentrazione!",
+                player: "{playerName}: Sono nato per le missioni pericolose, Chef. Nessun problema!"
             }
         ],
         6: [
             {
-                npc: "Chef: La pizza Galattica è il nostro orgoglio. Non farla cadere!",
-                player: "Pilota: La tratterò come se fosse fatta di cristallo spaziale!"
+                npc: "Chef: La pizza Galattica è il nostro orgoglio, {playerName}. Non farla cadere!",
+                player: "{playerName}: La tratterò come se fosse fatta di cristallo spaziale!"
             },
             {
-                npc: "Chef: Siamo quasi alla fine della nostra missione. Un ultimo sforzo!",
-                player: "Pilota: Darò il massimo per questa consegna finale, Chef!"
+                npc: "Chef: Siamo quasi alla fine della nostra missione, {playerName}. Un ultimo sforzo!",
+                player: "{playerName}: Darò il massimo per questa consegna finale, Chef!"
             }
         ],
         "infinite": [
             {
-                npc: "Chef: Modalità infinita attivata! Vediamo quanto resisti!",
-                player: "Pilota: Potrei continuare a consegnare pizze per l'eternità!"
+                npc: "Chef: Modalità infinita attivata, {playerName}! Vediamo quanto resisti!",
+                player: "{playerName}: Potrei continuare a consegnare pizze per l'eternità!"
             },
             {
-                npc: "Chef: In questa modalità non ci sono limiti. Dimostra il tuo valore!",
-                player: "Pilota: Nessun limite può fermarmi, sono il miglior pilota della galassia!"
+                npc: "Chef: In questa modalità non ci sono limiti, {playerName}. Dimostra il tuo valore!",
+                player: "{playerName}: Nessun limite può fermarmi, sono il miglior pilota della galassia!"
             }
         ],
-        // Dialoghi di test per lo sviluppo
-        "test": [
-            { 
-                npc: "Test NPC: Benvenuto al test del sistema di dialogo!", 
-                player: "Player: Grazie! Sto testando il movimento durante i dialoghi." 
-            },
-            { 
-                npc: "Test NPC: Ora verifica che la barra di progressione funzioni correttamente.", 
-                player: "Player: Sì, la barra si riempie in 3 secondi esatti!" 
-            },
-            { 
-                npc: "Test NPC: Controlla anche che il timer visivo mostri il countdown.", 
-                player: "Player: Il timer funziona perfettamente!" 
-            },
-            { 
-                npc: "Test NPC: Verifica che i dialoghi si alternino correttamente tra NPC e player.", 
-                player: "Player: L'alternanza funziona come previsto!" 
-            }
-        ]
     },
     
     // Inizializza il dialogo per il livello corrente
     initForLevel: function(level) {
-        // Forza la conclusione di qualsiasi dialogo precedente
+        // Prima di tutto, forza la conclusione di qualsiasi dialogo precedente
+        console.log(`[DEBUG] initForLevel: pulizia preventiva prima di inizializzare livello ${level}`);
+        
+        // Resetta lo stato del dialogo
         this.forceComplete();
+        this.active = false;
+        this.justCompleted = false;
+        
+        console.log(`[DEBUG] Inizializzando dialoghi per il livello ${level} (isInfinite: ${isInfiniteMode})`);
         
         // Pulisci completamente il testo e la coda
+        const dialogBox = document.getElementById('dialog-box');
         const dialogText = document.getElementById('dialog-text');
+        
+        // Nascondi immediatamente il box dei dialoghi
+        if (dialogBox) {
+            dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
+            dialogBox.classList.add('dialog-hidden');
+        }
         if (dialogText) {
             dialogText.textContent = '';
         }
@@ -192,6 +249,10 @@ let dialogSystem = {
     
     // Aggiunge un dialogo alla coda
     addToQueue: function(npcMessage, playerResponse) {
+        // Sostituisci {playerName} con il nome del giocatore
+        const playerName = this.getPlayerName();
+        npcMessage = npcMessage.replace(/\{playerName\}/g, playerName);
+        playerResponse = playerResponse.replace(/\{playerName\}/g, playerName);
         this.messageQueue.push({
             npc: npcMessage,
             player: playerResponse
@@ -217,13 +278,30 @@ let dialogSystem = {
     
     // Avvia la sequenza di dialogo
     start: function() {
-        if (this.messageQueue.length === 0) return;
+        if (this.messageQueue.length === 0) {
+            console.log('[DEBUG] start: nessun messaggio nella coda, uscita');
+            return;
+        }
+        
+        // Se c'è già un dialogo attivo, terminalo prima di iniziarne uno nuovo
+        if (this.active) {
+            console.log('[DEBUG] start: c\'è già un dialogo attivo, lo termino');
+            this.forceComplete();
+            return; // Non avviare immediatamente il nuovo dialogo
+        }
+        
+        // Doppio controllo dopo la pulizia
+        if (this.active) {
+            console.log('[DEBUG] start: dialogo ancora attivo dopo la pulizia, annullo avvio');
+            return;
+        }
         
         this.active = true;
         this.currentMessage = 0;
         this.isPlayerResponse = false;
         this.displayStartTime = Date.now();
         
+        console.log('[DEBUG] start: avvio nuovo dialogo');
         // Mostra il primo messaggio NPC
         this.showCurrentMessage();
         
@@ -245,9 +323,11 @@ let dialogSystem = {
     showCurrentMessage: function() {
         // Protezione contro messaggi sovrapposti
         if (!this.active || !this.messageQueue[this.currentMessage]) {
+            console.log('[DEBUG] showCurrentMessage: nessun messaggio valido da mostrare');
             this.forceComplete();
             return;
         }
+        console.log(`[DEBUG] Mostrando messaggio ${this.currentMessage + 1}/${this.messageQueue.length} (isPlayerResponse: ${this.isPlayerResponse})`);
         
         const dialogBox = document.getElementById('dialog-box');
         const dialogText = document.getElementById('dialog-text');
@@ -281,29 +361,33 @@ let dialogSystem = {
         dialogBox.classList.add('dialog-visible');
         const message = this.isPlayerResponse ? currentDialog.player : currentDialog.npc;
         
-        // Effetto typewriter
+        // Effetto typewriter (salviamo il riferimento al timeout per poterlo cancellare)
         let charIndex = 0;
-        let typingTimeout = null;
-        
+        // Assicuriamoci di cancellare eventuali timeout del typewriter precedenti
+        if (this.currentTypingTimeout) {
+            clearTimeout(this.currentTypingTimeout);
+            this.currentTypingTimeout = null;
+        }
+
         const typeWriter = () => {
             // Se il gioco è in pausa, non continuare a scrivere
             if (typeof isPaused !== 'undefined' && isPaused) {
                 // Salva lo stato attuale e riprendi dopo il countdown
                 const currentIndex = charIndex;
-                const checkPauseState = function() {
+                const checkPauseState = () => {
                     if (!isPaused && !isCountingDown) {
                         // Riprendi da dove eravamo rimasti
                         charIndex = currentIndex;
                         typeWriter();
                     } else {
                         // Controlla di nuovo tra poco
-                        setTimeout(checkPauseState, 100);
+                        this.currentTypingTimeout = setTimeout(checkPauseState, 100);
                     }
                 };
-                setTimeout(checkPauseState, 100);
+                this.currentTypingTimeout = setTimeout(checkPauseState, 100);
                 return;
             }
-            
+
             if (charIndex < message.length) {
                 dialogText.textContent += message.charAt(charIndex);
                 charIndex++;
@@ -312,10 +396,10 @@ let dialogSystem = {
                 if (message.startsWith("Bob:")) {
                     typingSpeed = 10; // Bob parla più velocemente
                 }
-                typingTimeout = setTimeout(typeWriter, typingSpeed);
+                this.currentTypingTimeout = setTimeout(typeWriter, typingSpeed);
             }
         };
-        
+
         typeWriter();
         this.displayStartTime = Date.now();
         
@@ -323,10 +407,10 @@ let dialogSystem = {
         this.setAutoCloseTimeout();
     },
     
-    // Progress bar functionality removed
-    
     // Passa al messaggio successivo o termina il dialogo
     nextMessage: function() {
+        console.log(`[DEBUG] nextMessage: pulisco i timeout e gestisco la transizione`);
+        
         // Cancella il timeout automatico e l'intervallo della barra di progressione
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
@@ -334,13 +418,20 @@ let dialogSystem = {
         if (this.progressBarInterval) {
             clearInterval(this.progressBarInterval);
         }
+        // Cancella anche eventuale timeout del typewriter
+        if (this.currentTypingTimeout) {
+            clearTimeout(this.currentTypingTimeout);
+            this.currentTypingTimeout = null;
+        }
         
         // Se è un messaggio NPC, passa alla risposta del player
         if (!this.isPlayerResponse) {
+            console.log('[DEBUG] nextMessage: passo alla risposta del player');
             this.isPlayerResponse = true;
             this.showCurrentMessage();
         } else {
             // Se è una risposta del player, passa al prossimo dialogo NPC
+            console.log('[DEBUG] nextMessage: passo al prossimo dialogo NPC');
             this.isPlayerResponse = false;
             this.currentMessage++;
             
@@ -349,6 +440,7 @@ let dialogSystem = {
                 this.showCurrentMessage();
             } else {
                 // Altrimenti termina il dialogo
+                console.log('[DEBUG] nextMessage: nessun altro messaggio, termino il dialogo');
                 this.end();
             }
         }
@@ -356,23 +448,33 @@ let dialogSystem = {
     
     // Termina la sequenza di dialogo
     end: function() {
+        console.log('[DEBUG] end: terminazione dialogo in corso');
         const dialogBox = document.getElementById('dialog-box');
         
         // Cancella il timeout automatico
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
         }
+        // Cancella anche eventuale timeout del typewriter
+        if (this.currentTypingTimeout) {
+            clearTimeout(this.currentTypingTimeout);
+            this.currentTypingTimeout = null;
+        }
         
         // Nascondi la finestra di dialogo con animazione
-        dialogBox.classList.remove('dialog-visible');
+        dialogBox.classList.remove('dialog-visible', 'pilot-speaking', 'chef-speaking', 'bob-speaking');
         dialogBox.classList.add('dialog-hidden');
         
         // Dopo l'animazione di chiusura, resetta lo stato
         setTimeout(() => {
-            this.active = false;
+            console.log('[DEBUG] end: stato resettato, dialogo completamente terminato');
+            // Usa forceComplete per assicurarci che tutto sia pulito correttamente
+            this.forceComplete();
             
             // Avvia lo spawn dei meteoriti se necessario
-            startMeteorSpawn();
+            if (typeof startMeteorSpawn === 'function') {
+                startMeteorSpawn();
+            }
         }, 300); // Durata dell'animazione di chiusura
     },
     
@@ -439,6 +541,11 @@ let dialogSystem = {
         if (this.progressBarInterval) {
             clearInterval(this.progressBarInterval);
             this.progressBarInterval = null;
+        }
+        // Cancella anche eventuale timeout del typewriter
+        if (this.currentTypingTimeout) {
+            clearTimeout(this.currentTypingTimeout);
+            this.currentTypingTimeout = null;
         }
         
         // Chiudi il dialogo
