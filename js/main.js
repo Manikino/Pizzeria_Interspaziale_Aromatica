@@ -1554,8 +1554,10 @@ function loadImages() {
     images.enemyShip.onerror = () => { images.enemyShip._failed = true; };
     
     // Icone scudo PNG (relative to index.html document root)
-    images.shieldIcon.src = '../img/Shield.png';
+    images.shieldIcon.src = '../img/Shield.Png';
+    images.shieldIcon.onerror = () => { images.shieldIcon._failed = true; };
     images.tempShieldIcon.src = '../img/TempShield.png';
+    images.tempShieldIcon.onerror = () => { images.tempShieldIcon._failed = true; };
     
 
     
@@ -3160,7 +3162,18 @@ function drawGame() {
             }
         } else if (p.type === 'shield_once') {
             // Piccolo scudo
-            ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
+            if (images.shieldIcon && images.shieldIcon.complete && !images.shieldIcon._failed && images.shieldIcon.naturalWidth > 0) {
+                ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
+            } else {
+                // Fallback semplice se l'immagine non è disponibile
+                ctx.fillStyle = '#66ff99';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#22cc77';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
         }
         ctx.restore();
     }
