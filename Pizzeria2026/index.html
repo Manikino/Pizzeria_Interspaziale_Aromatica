@@ -33,6 +33,22 @@
         <button id="btn-play" class="menu-button menu-play"><i class="btn-icon"></i>Inizia Missione</button>
         <button id="btn-credits" class="menu-button menu-credits"><i class="btn-icon"></i>Equipaggio</button>
     </div>
+
+    <div class="difficulty-select">
+        <div class="difficulty-buttons">
+            <button id="difficulty-easy" class="difficulty-button" data-diff="easy">
+                <img src="img/DifficultyEasy.png" alt="Facile">
+            </button>
+            <button id="difficulty-normal" class="difficulty-button selected" data-diff="normal">
+                <img src="img/DifficultyMedium.png" alt="Normale">
+            </button>
+            <button id="difficulty-hard" class="difficulty-button" data-diff="hard">
+                <img src="img/DifficultyHard.png" alt="Difficile">
+            </button>
+        </div>
+    </div>
+
+    
     
     <!-- Record modalità infinita -->
     <div class="high-score-container">
@@ -99,6 +115,21 @@
         <div id="game-area" class="game-section hidden">
 <div class="game-container">
                 <canvas id="game-canvas" width="800" height="600"></canvas>
+                <!-- Controlli touch per dispositivi mobili -->
+                <div id="touch-controls" class="touch-controls" aria-hidden="false">
+                    <div class="touch-movement">
+                        <div id="joystick" class="joystick" aria-hidden="false">
+                            <div id="joystick-base" class="joy-base">
+                                <div id="joystick-knob" class="joy-knob"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="touch-actions">
+                        <button id="touch-fire" class="touch-btn touch-action" aria-label="Spara">S</button>
+                        <button id="touch-aoe" class="touch-btn touch-action" aria-label="Colpo ad area">AOE</button>
+                        <button id="touch-boost" class="touch-btn touch-action" aria-label="Scatto">⇪</button>
+                    </div>
+                </div>
                 <div id="dialog-box" class="dialog-hidden">
                     <div class="dialog-content">
                         <p id="dialog-text"></p>

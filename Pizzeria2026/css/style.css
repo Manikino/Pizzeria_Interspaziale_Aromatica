@@ -353,6 +353,75 @@ h4 {
     display: inline-block;
 }
 
+/* Selezione difficoltà (overlay, separata e compatta) */
+.difficulty-select {
+    position: fixed;
+    left: 20px;
+    top: 160px;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    z-index: 1000;
+}
+.difficulty-select h3 { display: none !important; }
+.difficulty-select::before {
+    content: 'Difficoltà';
+    display: block;
+    text-align: center;
+    font-family: 'PressStart2P', 'PixelFallback', sans-serif;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    font-size: 0.7rem;
+    opacity: 0.85;
+    margin-bottom: 4px;
+}
+.difficulty-buttons {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+}
+.difficulty-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+}
+.difficulty-button img {
+    width: 40px;
+    height: auto;
+    image-rendering: pixelated;
+}
+.difficulty-button.selected {
+    outline: 2px solid #ffd34d;
+    box-shadow: 0 0 0 2px #000 inset;
+}
+.difficulty-details, .difficulty-tooltip { display: none !important; }
+
+/* Messaggi cheat retro */
+.cheat-message {
+    position: fixed;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 2px solid #ffd34d;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-family: 'PressStart2P', 'PixelFallback', sans-serif;
+    font-size: 0.8rem;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 1200;
+}
+
+
 /* Controlli del volume */
 .volume-controls {
     display: flex;
@@ -893,6 +962,87 @@ body.game-mode {
     .progress-bar {
         height: 100%;
     }
+}
+
+/* Touch controls - hidden on desktop, visible on small screens */
+.touch-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: none; /* default hidden, enabled in media query */
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    z-index: 1500;
+    pointer-events: none;
+}
+.touch-controls .touch-movement,
+.touch-controls .touch-actions {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+}
+.touch-btn {
+    min-width: 54px;
+    min-height: 54px;
+    padding: 10px;
+    font-size: 18px;
+    border-radius: 8px;
+    background: rgba(58,70,168,0.9);
+    color: #fff;
+    border: 3px solid #0f1330;
+    box-shadow: 0 4px 0 #000;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.touch-btn:active {
+    transform: translateY(2px) scale(0.98);
+}
+
+/* Show touch controls on smaller screens and on touch-capable devices */
+@media (max-width: 850px), (pointer: coarse) {
+    .touch-controls { display: flex; }
+    /* Make canvas take full width and allow touch interactions */
+    #game-canvas { touch-action: none; }
+}
+
+/* Joystick styles */
+.joystick {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.joy-base {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(11,18,60,0.6);
+    border: 4px solid #0f1330;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    touch-action: none;
+}
+.joy-knob {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #5B6EE6, #3a46a8);
+    box-shadow: 0 6px 0 #000;
+    transform: translate(0,0);
+    transition: transform 0.05s linear;
+    touch-action: none;
+}
+
+/* Adjust sizes for small screens */
+@media (max-width: 420px) {
+    .joystick { width: 96px; height: 96px; }
+    .joy-knob { width: 44px; height: 44px; }
+    .touch-btn { min-width: 48px; min-height: 48px; font-size: 16px; }
 }
 
 /* Classe / fallback per effetto 'pixel' (quando non c' un font reale)

@@ -3,6 +3,22 @@ let canvas, ctx;
 let gameActive = false;
 let gameLoop;
 
+// Difficoltà di gioco
+let currentDifficulty = 'normal';
+const difficultyConfig = {
+    easy: { meteoriteSpawnMultiplier: 1, enemySpawnIntervalMultiplier: 1.5, meteoriteProgressBonus: 2 },
+    normal: { meteoriteSpawnMultiplier: 1, enemySpawnIntervalMultiplier: 1, meteoriteProgressBonus: 1 },
+    hard: { meteoriteSpawnMultiplier: 1.5, enemySpawnIntervalMultiplier: 1, meteoriteProgressBonus: 0 }
+};
+function getMeteoriteSpawnMultiplier() { return difficultyConfig[currentDifficulty].meteoriteSpawnMultiplier; }
+function getMeteoriteProgressBonus() { return difficultyConfig[currentDifficulty].meteoriteProgressBonus; }
+function getEnemySpawnInterval() {
+    const mult = difficultyConfig[currentDifficulty].enemySpawnIntervalMultiplier;
+    const min = enemySpawnIntervalRange.min * mult;
+    const max = enemySpawnIntervalRange.max * mult;
+    return min + Math.random() * (max - min);
+}
+
 // Flag per evitare doppi avvii del dialogo dopo il decollo
 let dialogStartedAfterTakeoff = false;
 
@@ -323,6 +339,8 @@ let unlockedLevels = 1; // Solo il primo livello è sbloccato all'inizio
 let isInfiniteMode = false; // Modalità infinita
 let maxBullets = 20; // Numero massimo di proiettili disponibili
 let remainingBullets = maxBullets; // Proiettili rimanenti
+const unlockSequence = ['u','n','l','o','c','k'];
+let unlockIndex = 0;
 
 // Variabili per la sequenza Konami e il dialogo segreto sono definite in secret-dialog.js
 
@@ -330,6 +348,22 @@ let remainingBullets = maxBullets; // Proiettili rimanenti
 document.addEventListener('keydown', function(event) {
     // Se il gioco è attivo o c'è un dialogo attivo, non processare la sequenza Konami
     if (dialogSystem && dialogSystem.active) return;
+    const mainMenu = document.getElementById('main-menu');
+    const isMainMenuVisible = mainMenu && !mainMenu.classList.contains('hidden');
+    if (isMainMenuVisible) {
+        const k = (event.key || '').toLowerCase();
+        if (k === unlockSequence[unlockIndex]) {
+            unlockIndex++;
+            if (unlockIndex === unlockSequence.length) {
+                unlockIndex = 0;
+                unlockedLevels = 6;
+                updateLevelButtons();
+                showUnlockMessage();
+            }
+        } else {
+            unlockIndex = 0;
+        }
+    }
     
     // Verifica se il tasto premuto corrisponde al prossimo nella sequenza Konami
     if (event.key === konamiSequence[konamiIndex]) {
@@ -345,6 +379,20 @@ document.addEventListener('keydown', function(event) {
         konamiIndex = 0;
     }
 });
+
+function showUnlockMessage() {
+    let el = document.getElementById('cheat-unlock-msg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'cheat-unlock-msg';
+        el.className = 'cheat-message';
+        el.textContent = 'TUTTI I LIVELLI SBLOCCATI!';
+        document.body.appendChild(el);
+    }
+    el.style.display = '';
+    el.classList.add('fade-in');
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
 
 // Sistema di animazioni e fade-in
 let animationState = 'none'; // 'takeoff', 'landing', 'game', 'none', 'fade-in'
@@ -654,6 +702,34 @@ let gameKeys = {
     o: false // shockwave
 };
 
+// Responsive scale used to adapt sizes on small screens
+let responsiveScale = 1;
+let meteoriteSizeMultiplier = 1;
+
+function updateResponsiveScale() {
+    const w = window.innerWidth;
+    if (w <= 420) {
+        responsiveScale = 0.6;
+    } else if (w <= 768) {
+        responsiveScale = 0.8;
+    } else {
+        responsiveScale = 1;
+    }
+    meteoriteSizeMultiplier = responsiveScale;
+    // Apply to spaceship if currently placed
+    if (typeof spaceship !== 'undefined') {
+        // Match sizes used in startGame (base 30x20)
+        spaceship.width = Math.max(12, Math.round(30 * responsiveScale));
+        spaceship.height = Math.max(12, Math.round(20 * responsiveScale));
+        spaceship.maxSpeed = Math.max(3, 6 * responsiveScale);
+    }
+}
+
+// Update on resize
+window.addEventListener('resize', () => {
+    updateResponsiveScale();
+});
+
 function clearGameKeys() {
     gameKeys.left = false;
     gameKeys.right = false;
@@ -868,6 +944,43 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnDocs = document.getElementById('btn-docs');
     const btnPlay = document.getElementById('btn-play');
     const btnCredits = document.getElementById('btn-credits');
+
+    // Difficoltà UI
+    const diffEasy = document.getElementById('difficulty-easy');
+    const diffNormal = document.getElementById('difficulty-normal');
+    const diffHard = document.getElementById('difficulty-hard');
+    const diffTooltip = document.getElementById('difficulty-tooltip');
+    const diffDetails = document.getElementById('difficulty-details');
+    function setDifficulty(d) {
+        currentDifficulty = d;
+        document.querySelectorAll('.difficulty-button').forEach(b => b.classList.remove('selected'));
+        const id = d === 'easy' ? 'difficulty-easy' : d === 'hard' ? 'difficulty-hard' : 'difficulty-normal';
+        const el = document.getElementById(id);
+        if (el) el.classList.add('selected');
+        updateDifficultyDetails(d);
+    }
+    function showTooltip(text) { if (diffTooltip) diffTooltip.textContent = text || ''; }
+    function updateDifficultyDetails(d) {
+        if (!diffDetails) return;
+        const cfg = difficultyConfig[d];
+        const meteorTxt = cfg.meteoriteSpawnMultiplier > 1 ? '+50% meteoriti' : 'Meteoriti standard';
+        const progressTxt = `Progresso per meteorite: ${cfg.meteoriteProgressBonus}%`;
+        const enemyTxt = cfg.enemySpawnIntervalMultiplier > 1 ? 'Spawn nemici -50%' : 'Spawn nemici standard';
+        diffDetails.innerHTML = `<div class="diff-line">${meteorTxt}</div><div class="diff-line">${progressTxt}</div><div class="diff-line">${enemyTxt}</div>`;
+    }
+    const tipEasy = 'Facile: +2% progresso, nemici -50%';
+    const tipNormal = 'Normale: +1% progresso';
+    const tipHard = 'Difficile: +50% meteoriti, 0% progresso';
+    if (diffEasy && diffNormal && diffHard) {
+        diffEasy.addEventListener('click', () => setDifficulty('easy'));
+        diffNormal.addEventListener('click', () => setDifficulty('normal'));
+        diffHard.addEventListener('click', () => setDifficulty('hard'));
+        diffEasy.addEventListener('mouseenter', () => showTooltip(tipEasy));
+        diffNormal.addEventListener('mouseenter', () => showTooltip(tipNormal));
+        diffHard.addEventListener('mouseenter', () => showTooltip(tipHard));
+        [diffEasy, diffNormal, diffHard].forEach(b => b && b.addEventListener('mouseleave', () => showTooltip('')));
+        setDifficulty(currentDifficulty);
+    }
     
     // Bottoni navigazione
     const backFromDocs = document.getElementById('back-from-docs');
@@ -1055,6 +1168,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners per i controlli di gioco
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+
+    // Inizializza i controlli touch (se presenti) per dispositivi mobili
+    try { setupTouchControls(); } catch(e) { /* fail silently if DOM not ready */ }
 
     // Pausa automatica quando la scheda cambia visibilità
     document.addEventListener('visibilitychange', () => {
@@ -1473,7 +1589,7 @@ const images = {
     enemyShip: new Image(),
     shieldIcon: new Image(),
     tempShieldIcon: new Image(),
-    planets: [] // immagini opzionali per i pianeti: ../img/planet_X.PNG
+    planets: [] // immagini opzionali per i pianeti: img/planet_X.PNG
 };
 
 // Inizializzazione del sistema di stelle (super ottimizzato)
@@ -1554,10 +1670,8 @@ function loadImages() {
     images.enemyShip.onerror = () => { images.enemyShip._failed = true; };
     
     // Icone scudo PNG (relative to index.html document root)
-    images.shieldIcon.src = 'img/Shield.Png';
-    images.shieldIcon.onerror = () => { images.shieldIcon._failed = true; };
+    images.shieldIcon.src = 'img/Shield.png';
     images.tempShieldIcon.src = 'img/TempShield.png';
-    images.tempShieldIcon.onerror = () => { images.tempShieldIcon._failed = true; };
     
 
     
@@ -1645,7 +1759,7 @@ function startGame() {
     
     // Reset navicelle nemiche
     enemyShips = [];
-    enemyNextSpawn = Date.now() + (enemySpawnIntervalRange.min + Math.random() * (enemySpawnIntervalRange.max - enemySpawnIntervalRange.min));
+    enemyNextSpawn = Date.now() + getEnemySpawnInterval();
 
     // Cancella eventuale timer di spawn meteoriti precedente
     if (meteorSpawnTimeout) {
@@ -1943,10 +2057,11 @@ function generateMeteorites() {
     
     // Scala il numero di meteoriti in base alla dimensione della finestra
     const screenSizeFactor = window.innerWidth / 1920;
-    const meteoritesCount = Math.floor((5 + (currentLevel * countFactor)) * screenSizeFactor);
+    const meteoritesCount = Math.floor((5 + (currentLevel * countFactor)) * screenSizeFactor * getMeteoriteSpawnMultiplier());
     
     for (let i = 0; i < meteoritesCount; i++) {
-        const size = Math.random() * 30 + 35; // Dimensione tra 35 e 65
+        const baseSize = Math.random() * 30 + 35; // Dimensione base tra 35 e 65
+        const size = Math.max(12, Math.round(baseSize * meteoriteSizeMultiplier));
         const speedFactorLevel = currentLevel <= 3 ? 0.8 : 0.45; // velocità cresce meno dal livello 4
         const baseSpeed = 1.5 + (currentLevel * speedFactorLevel);
         
@@ -2135,7 +2250,7 @@ function gameUpdate() {
         // Spawn programmato delle navicelle nemiche (solo dal livello 4 o in modalità infinita)
         if (Date.now() >= enemyNextSpawn && (currentLevel >= 4 || isInfiniteMode)) {
             spawnEnemyShip();
-            enemyNextSpawn = Date.now() + (enemySpawnIntervalRange.min + Math.random() * (enemySpawnIntervalRange.max - enemySpawnIntervalRange.min));
+            enemyNextSpawn = Date.now() + getEnemySpawnInterval();
         }
         
         // Spawn e aggiornamento power-up
@@ -2648,7 +2763,7 @@ function updateShockwaves() {
                 if (isInfiniteMode) {
                     score += 10 * currentLevel;
                 } else if (currentLevel >= 2) {
-                    progress += 2.5;
+                    progress += getMeteoriteProgressBonus();
                 }
                 updateUI();
             }
@@ -2700,7 +2815,7 @@ function updateMeteorites() {
     }
     
 // Aggiunta di nuovi meteoriti se ce ne sono pochi
-    if (meteorites.length < 5 + (currentLevel * 2)) {
+    if (meteorites.length < (5 + (currentLevel * 2)) * getMeteoriteSpawnMultiplier()) {
         const size = Math.random() * 25 + 15;
         const speedFactorLevel = currentLevel <= 3 ? 0.8 : 0.45;
         const baseSpeed = (1.5 + (currentLevel * speedFactorLevel)) * (isInfiniteMode ? infiniteSpeedMultiplier : 1);
@@ -2753,7 +2868,7 @@ function checkCollisions() {
                 } else {
                     // Nelle altre modalità, colpire i meteoriti aumenta il progresso solo dal livello 2 in poi
                     if (currentLevel >= 2) {
-                        progress += 2.5;
+                        progress += getMeteoriteProgressBonus();
                     }
                 }
                 
@@ -3162,18 +3277,7 @@ function drawGame() {
             }
         } else if (p.type === 'shield_once') {
             // Piccolo scudo
-            if (images.shieldIcon && images.shieldIcon.complete && !images.shieldIcon._failed && images.shieldIcon.naturalWidth > 0) {
-                ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
-            } else {
-                // Fallback semplice se l'immagine non è disponibile
-                ctx.fillStyle = '#66ff99';
-                ctx.beginPath();
-                ctx.arc(0, 0, 12, 0, Math.PI*2);
-                ctx.fill();
-                ctx.strokeStyle = '#22cc77';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
+            ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
         }
         ctx.restore();
     }
@@ -3872,6 +3976,102 @@ function handleKeyUp(e) {
             gameKeys.p = false; // P per sparare
             break;
     }
+}
+
+// Inizializza i controlli touch: collega i bottoni a gameKeys
+function setupTouchControls() {
+    // Action buttons (fire, aoe, boost)
+    const actionMappings = [
+        { id: 'touch-fire', key: 'p' },
+        { id: 'touch-aoe', key: 'o' },
+        { id: 'touch-boost', key: 'space' }
+    ];
+    actionMappings.forEach(mapping => {
+        const el = document.getElementById(mapping.id);
+        if (!el) return;
+        const onDown = (ev) => { ev.preventDefault(); gameKeys[mapping.key] = true; try { if (ev.pointerId) el.setPointerCapture(ev.pointerId); } catch(e) {} };
+        const onUp = (ev) => { ev && ev.preventDefault(); gameKeys[mapping.key] = false; try { if (ev && ev.pointerId) el.releasePointerCapture(ev.pointerId); } catch(e) {} };
+        el.addEventListener('pointerdown', onDown, { passive: false });
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onUp);
+        el.addEventListener('pointerleave', onUp);
+    });
+
+    // Joystick movement
+    const joyBase = document.getElementById('joystick-base');
+    const joyKnob = document.getElementById('joystick-knob');
+    if (joyBase && joyKnob) {
+        let activePointer = null;
+        let center = { x: 0, y: 0 };
+        const baseRect = () => joyBase.getBoundingClientRect();
+        const maxRadius = () => Math.min(baseRect().width, baseRect().height) * 0.42;
+
+        const setKnobPos = (dx, dy) => {
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        };
+
+        const resetKnob = () => {
+            setKnobPos(0,0);
+            ['left','right','up','down'].forEach(k => gameKeys[k] = false);
+        };
+
+        const onPointerDown = (ev) => {
+            ev.preventDefault();
+            activePointer = ev.pointerId;
+            joyBase.setPointerCapture && joyBase.setPointerCapture(activePointer);
+            const r = baseRect();
+            center = { x: r.left + r.width/2, y: r.top + r.height/2 };
+            onPointerMove(ev);
+        };
+
+        const onPointerMove = (ev) => {
+            if (activePointer !== null && ev.pointerId !== activePointer) return;
+            ev.preventDefault();
+            const dx = ev.clientX - center.x;
+            const dy = ev.clientY - center.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const r = maxRadius();
+            const clampDist = Math.min(dist, r);
+            const nx = (dist === 0) ? 0 : dx / dist;
+            const ny = (dist === 0) ? 0 : dy / dist;
+            const knobX = nx * clampDist;
+            const knobY = ny * clampDist;
+            setKnobPos(knobX, knobY);
+
+            // Thresholds for directional activation (normalized)
+            const threshold = 0.35;
+            const normX = clampDist === 0 ? 0 : knobX / r;
+            const normY = clampDist === 0 ? 0 : knobY / r;
+
+            // y-axis: negative is up
+            gameKeys.left = normX < -threshold;
+            gameKeys.right = normX > threshold;
+            gameKeys.up = normY < -threshold;
+            gameKeys.down = normY > threshold;
+        };
+
+        const onPointerUp = (ev) => {
+            if (activePointer !== null && ev.pointerId !== activePointer) return;
+            ev && ev.preventDefault();
+            try { joyBase.releasePointerCapture && joyBase.releasePointerCapture(activePointer); } catch(e) {}
+            activePointer = null;
+            resetKnob();
+        };
+
+        joyBase.addEventListener('pointerdown', onPointerDown, { passive: false });
+        window.addEventListener('pointermove', onPointerMove, { passive: false });
+        window.addEventListener('pointerup', onPointerUp);
+        joyBase.addEventListener('pointercancel', onPointerUp);
+    }
+
+    // Sicurezza: al rilascio del puntatore su window, azzera gli stati di input touch (azioni)
+    window.addEventListener('pointerup', () => {
+        ['p','o','space'].forEach(k => { gameKeys[k] = false; });
+    });
+
+    // Disabilita lo scrolling involontario durante il gioco su mobile
+    const canvasEl = document.getElementById('game-canvas');
+    if (canvasEl) canvasEl.style.touchAction = 'none';
 }
 
 function startShipExplosion() {
