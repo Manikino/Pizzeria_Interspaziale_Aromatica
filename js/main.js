@@ -2009,11 +2009,7 @@ function updateUI() {
     // Mostra/nascondi contatore proiettili (nascosto nel livello 1 non infinito)
     const bulletsCounterEl = document.querySelector('.bullets-counter');
     if (bulletsCounterEl) {
-        if (window.innerWidth <= 768 && !isInfiniteMode && currentLevel === 1) {
-            bulletsCounterEl.style.display = 'none';
-        } else {
-            bulletsCounterEl.style.display = 'inline-block';
-        }
+        bulletsCounterEl.style.display = 'inline-block';
     }
     
     // Aggiornamento dell'interfaccia di gioco
@@ -2060,7 +2056,11 @@ function updateUI() {
 
     // In infinita, la barra rappresenta la vicinanza al cambio di fase
     document.getElementById('progress-text').textContent = isInfiniteMode ? ('Fase ' + Math.floor(progress) + '%') : (Math.floor(progress) + '%');
-    document.getElementById('bullets-count').textContent = remainingBullets;
+    if (!isInfiniteMode && currentLevel === 1) {
+        document.getElementById('bullets-count').textContent = 0;
+    } else {
+        document.getElementById('bullets-count').textContent = remainingBullets;
+    }
 
     if (window.innerWidth <= 768) {
         const lvlEl = document.getElementById('current-level');
@@ -4044,8 +4044,8 @@ function setupTouchControls() {
     actionMappings.forEach(mapping => {
         const el = document.getElementById(mapping.id);
         if (!el) return;
-        const onDown = (ev) => { ev.preventDefault(); gameKeys[mapping.key] = true; try { if (ev.pointerId) el.setPointerCapture(ev.pointerId); } catch(e) {} };
-        const onUp = (ev) => { ev && ev.preventDefault(); gameKeys[mapping.key] = false; try { if (ev && ev.pointerId) el.releasePointerCapture(ev.pointerId); } catch(e) {} };
+        const onDown = (ev) => { ev.preventDefault(); gameKeys[mapping.key] = true; };
+        const onUp = (ev) => { ev && ev.preventDefault(); gameKeys[mapping.key] = false; };
         el.addEventListener('pointerdown', onDown, { passive: false });
         el.addEventListener('pointerup', onUp);
         el.addEventListener('pointercancel', onUp);
@@ -4080,7 +4080,7 @@ function setupTouchControls() {
         };
 
         const onPointerMove = (ev) => {
-            if (activePointer !== null && ev.pointerId !== activePointer) return;
+            if (activePointer === null || ev.pointerId !== activePointer) return;
             ev.preventDefault();
             const dx = ev.clientX - center.x;
             const dy = ev.clientY - center.y;
