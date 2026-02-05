@@ -2016,7 +2016,48 @@ function updateUI() {
         }
     }
     
-    document.getElementById('progress-fill').style.height = progress + '%';
+    // Aggiornamento dell'interfaccia di gioco
+    
+    // Gestione barra di progresso (responsive)
+    const progressBarFill = document.getElementById('progress-fill');
+    if (progressBarFill) {
+        if (window.innerWidth <= 768) {
+            progressBarFill.style.width = progress + '%';
+            progressBarFill.style.height = '100%';
+        } else {
+            progressBarFill.style.height = progress + '%';
+            progressBarFill.style.width = '100%';
+        }
+    }
+    
+    // Gestione visibilità bottoni touch in base al livello
+    const fireBtn = document.getElementById('touch-fire');
+    const aoeBtn = document.getElementById('touch-aoe');
+    const boostBtn = document.getElementById('touch-boost');
+
+    if (fireBtn && aoeBtn && boostBtn) {
+        // Fire: Livello >= 2 OR Infinita
+        if (isInfiniteMode || currentLevel >= 2) {
+            fireBtn.classList.remove('disabled-btn');
+        } else {
+            fireBtn.classList.add('disabled-btn');
+        }
+
+        // AOE: Livello >= 3 OR Infinita
+        if (isInfiniteMode || currentLevel >= 3) {
+            aoeBtn.classList.remove('disabled-btn');
+        } else {
+            aoeBtn.classList.add('disabled-btn');
+        }
+        
+        // Boost: Solo Infinita
+        if (isInfiniteMode) {
+            boostBtn.classList.remove('disabled-btn');
+        } else {
+            boostBtn.classList.add('disabled-btn');
+        }
+    }
+
     // In infinita, la barra rappresenta la vicinanza al cambio di fase
     document.getElementById('progress-text').textContent = isInfiniteMode ? ('Fase ' + Math.floor(progress) + '%') : (Math.floor(progress) + '%');
     document.getElementById('bullets-count').textContent = remainingBullets;

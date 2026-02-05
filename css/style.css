@@ -1270,4 +1270,131 @@ button:hover:not(.locked) {
         padding: 15px;
         font-size: 0.9rem;
     }
+
+    /* Mobile Game Screen Optimization */
+    .game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        padding-top: 5px;
+        position: relative;
+        overflow: hidden; /* Prevent scrolling */
+    }
+
+    /* 1. Progress Bar: Horizontal Top */
+    .progress-bar {
+        position: relative;
+        top: auto;
+        right: auto;
+        left: auto;
+        transform: none;
+        width: 90%;
+        height: 20px;
+        writing-mode: horizontal-tb;
+        margin-bottom: 8px;
+        order: 1;
+        background: #14173a;
+    }
+    
+    .progress-fill {
+        width: 0%; /* JS will update this */
+        height: 100% !important;
+        bottom: auto;
+        top: 0;
+        left: 0;
+        transition: width 0.3s;
+    }
+    
+    #progress-text {
+        transform: translate(-50%, -50%); /* Reset rotation */
+        font-size: 0.6rem;
+    }
+
+    /* 2. Shield Container: Horizontal Row */
+    .shield-container {
+        position: relative;
+        top: auto;
+        left: auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2px;
+        margin-bottom: 8px;
+        order: 2;
+        grid-template-columns: none;
+        width: 100%;
+    }
+    
+    .shield-indicator {
+        width: 24px;
+        height: 24px;
+        display: block !important; /* Ensure they are visible for layout, JS controls opacity/display */
+    }
+
+    /* 3. Game Canvas */
+    #game-canvas {
+        width: 96%;
+        height: 45vh !important;
+        object-fit: contain;
+        order: 3;
+        margin-bottom: 8px;
+        border-width: 2px;
+    }
+
+    /* 4. Level Info */
+    .level-info {
+        position: relative;
+        order: 4;
+        width: 96%;
+        font-size: 0.6rem;
+        padding: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        background: rgba(20, 23, 58, 0.8);
+    }
+    
+    .level-info span, .level-info div {
+        margin: 2px;
+    }
+
+    /* 5. Controls */
+    .touch-controls {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        order: 5;
+        width: 100%;
+        justify-content: space-around;
+        padding: 10px 5px;
+        margin-top: auto;
+        pointer-events: auto; /* Allow interaction in this area */
+    }
+
+    .touch-movement, .touch-actions {
+        pointer-events: auto;
+    }
+
+    /* Disabled Button Style */
+    .touch-btn.disabled-btn {
+        opacity: 0.3;
+        pointer-events: none;
+        filter: grayscale(100%);
+        position: relative;
+    }
+    
+    /* Optional: Add a lock icon overlay for disabled buttons */
+    .touch-btn.disabled-btn::after {
+        content: '🔒';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1rem;
+    }
 }
