@@ -130,10 +130,6 @@ let dialogSystem = {
             {
                 npc: "Chef: Attenzione ai meteoriti, {playerName}, non possiamo permetterci di perdere un'altra navicella...",
                 player: "{playerName}: Tranquillo, ho riflessi fulminei. Nessun meteorite mi colpirà!"
-            },
-            {
-                npc: "Bob: PIZZAAAAA SPAZIALEEEE! AHAHAH! GUARDA COME VOLO!",
-                player: "{playerName}: Chi è quel matto? E come fa a sopravvivere nello spazio senza tuta?!"
             }
         ],
         2: [

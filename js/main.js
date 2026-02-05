@@ -1670,7 +1670,7 @@ function loadImages() {
     images.enemyShip.onerror = () => { images.enemyShip._failed = true; };
     
     // Icone scudo PNG (relative to index.html document root)
-    images.shieldIcon.src = 'img/Shield.png';
+    images.shieldIcon.src = 'img/ShieldIcon.png';
     images.tempShieldIcon.src = 'img/TempShield.png';
     
 
@@ -2312,7 +2312,7 @@ function performGameOverUI() {
     // Mostra immagine di sconfitta, se presente
     const overImg = document.getElementById('game-over-image');
     if (overImg) {
-        overImg.src = 'img/Lost.PNG';
+        overImg.src = 'img/Lost.png';
         overImg.alt = 'Hai perso';
     }
     // In modalità infinita, riavvia sempre dal livello 1
@@ -2323,7 +2323,7 @@ function performGameOverUI() {
     document.getElementById('game-area').classList.add('hidden');
     const overSection = document.getElementById('game-over');
     overSection.classList.add('bg-image-mode', 'bg-cover');
-    overSection.style.backgroundImage = "url('img/Lost.PNG')";
+    overSection.style.backgroundImage = "url('img/Lost.png')";
     showSection('game-over');
 }
 
