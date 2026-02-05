@@ -1960,28 +1960,28 @@ function updateUI() {
         const highestPhaseWrapper = document.getElementById('highest-phase-wrapper');
         const highestPhaseElement = document.getElementById('game-highest-phase');
         
-        if (highScoreWrapper && highScoreElement) {
+        if (highScoreWrapper && highScoreElement && window.innerWidth > 768) {
             highScoreWrapper.style.display = 'inline-block';
             highScoreElement.textContent = highScore;
-            
-            // Posiziona il record in alto al centro
             highScoreWrapper.style.position = 'absolute';
             highScoreWrapper.style.top = '10px';
             highScoreWrapper.style.left = '50%';
             highScoreWrapper.style.transform = 'translateX(-50%)';
             highScoreWrapper.style.zIndex = '100';
+        } else if (highScoreWrapper) {
+            highScoreWrapper.style.display = 'none';
         }
         
-        if (highestPhaseWrapper && highestPhaseElement) {
+        if (highestPhaseWrapper && highestPhaseElement && window.innerWidth > 768) {
             highestPhaseWrapper.style.display = 'inline-block';
             highestPhaseElement.textContent = highestPhase + 1;
-            
-            // Posiziona la fase record in alto al centro sotto il record
             highestPhaseWrapper.style.position = 'absolute';
             highestPhaseWrapper.style.top = '40px';
             highestPhaseWrapper.style.left = '50%';
             highestPhaseWrapper.style.transform = 'translateX(-50%)';
             highestPhaseWrapper.style.zIndex = '100';
+        } else if (highestPhaseWrapper) {
+            highestPhaseWrapper.style.display = 'none';
         }
     } else {
         scoreContainer.style.display = 'none';
@@ -4072,10 +4072,15 @@ function setupTouchControls() {
 
         const onPointerDown = (ev) => {
             ev.preventDefault();
-            activePointer = ev.pointerId;
-            joyBase.setPointerCapture && joyBase.setPointerCapture(activePointer);
             const r = baseRect();
             center = { x: r.left + r.width/2, y: r.top + r.height/2 };
+            const dx0 = ev.clientX - center.x;
+            const dy0 = ev.clientY - center.y;
+            const dist0 = Math.sqrt(dx0*dx0 + dy0*dy0);
+            if (dist0 > maxRadius()) {
+                return;
+            }
+            activePointer = ev.pointerId;
             onPointerMove(ev);
         };
 
