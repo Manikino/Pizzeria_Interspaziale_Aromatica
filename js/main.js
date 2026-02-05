@@ -2009,7 +2009,7 @@ function updateUI() {
     // Mostra/nascondi contatore proiettili (nascosto nel livello 1 non infinito)
     const bulletsCounterEl = document.querySelector('.bullets-counter');
     if (bulletsCounterEl) {
-        if (!isInfiniteMode && currentLevel === 1) {
+        if (window.innerWidth <= 768 && !isInfiniteMode && currentLevel === 1) {
             bulletsCounterEl.style.display = 'none';
         } else {
             bulletsCounterEl.style.display = 'inline-block';

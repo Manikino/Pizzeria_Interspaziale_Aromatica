@@ -1398,3 +1398,29 @@ button:hover:not(.locked) {
         font-size: 1rem;
     }
 }
+@media (max-width: 768px) {
+    .pause-instruction { display: none; }
+    .main-menu .menu-docs { font-size: 0.85rem !important; }
+
+    .touch-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        gap: 16px;
+        padding: 6px 8px;
+    }
+    .touch-movement { justify-content: flex-start; align-items: flex-start; }
+    .joystick { width: 160px; height: 160px; }
+    .joy-knob { width: 64px; height: 64px; }
+
+    .touch-actions {
+        position: relative;
+        width: 240px;
+        height: 190px;
+        justify-self: end;
+        top: -10px;
+    }
+    #touch-fire { position: absolute; top: 0; left: 0; }
+    #touch-aoe { position: absolute; top: 0; right: 0; }
+    #touch-boost { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); }
+}
