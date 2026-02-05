@@ -3277,7 +3277,18 @@ function drawGame() {
             }
         } else if (p.type === 'shield_once') {
             // Piccolo scudo
-            ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
+            if (images.shieldIcon && images.shieldIcon.complete && images.shieldIcon.naturalWidth > 0) {
+                ctx.drawImage(images.shieldIcon, -14, -14, 28, 28);
+            } else {
+                // Fallback circle if image is missing/broken
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
         }
         ctx.restore();
     }
