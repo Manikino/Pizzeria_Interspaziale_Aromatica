@@ -1180,3 +1180,94 @@ button:hover:not(.locked) {
     background: #3a46a8;
     text-shadow: 2px 2px 0 #000;
 }
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    /* Main Title */
+    h1 {
+        font-size: 18px !important;
+        margin-bottom: 15px;
+    }
+    h2 {
+        font-size: 12px !important;
+    }
+
+    /* Main Menu Layout */
+    .main-menu {
+        margin: 20px 0;
+        gap: 15px;
+    }
+
+    /* Menu Buttons: Stacked */
+    .main-menu .menu-buttons-container {
+        flex-direction: column;
+        gap: 15px;
+        order: 1;
+        width: 100%;
+    }
+    
+    .main-menu .menu-button {
+        width: 90%;
+        max-width: none;
+        padding: 15px;
+        font-size: 1rem;
+    }
+
+    /* Difficulty Selection: Below buttons, side-by-side */
+    .difficulty-select {
+        position: static !important;
+        margin: 10px 0;
+        width: 100%;
+        order: 2;
+        transform: none;
+        align-items: center;
+    }
+
+    .difficulty-buttons {
+        flex-direction: row;
+        gap: 20px;
+    }
+    
+    .difficulty-select::before {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+    }
+
+    /* Volume Controls: Below difficulty */
+    .volume-controls {
+        order: 3;
+        width: 90%;
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .volume-control label {
+        font-size: 10px;
+        width: 60px;
+    }
+
+    /* High Scores: At the bottom, smaller */
+    .high-score-container {
+        order: 4;
+        margin-top: 10px;
+    }
+    
+    .high-score-container h3 {
+        font-size: 0.9rem;
+    }
+    
+    .high-score-info p {
+        font-size: 0.8rem;
+    }
+
+    /* Level Grid: 2 columns x 3 rows */
+    .level-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .level-button {
+        padding: 15px;
+        font-size: 0.9rem;
+    }
+}

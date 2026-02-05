@@ -1358,6 +1358,9 @@ let _menuParallaxHandler = null;
 let lastBackgroundPosition = { x: 0, y: 0 }; // Memorizza l'ultima posizione
 
 function enableMenuParallax() {
+    // Disable on mobile/small screens (max-width 768px)
+    if (window.innerWidth <= 768) return;
+
     if (_menuParallaxHandler) return;
     const strength = 60; // pixel massimo di offset più ampio
     document.body.style.backgroundSize = '120%';
