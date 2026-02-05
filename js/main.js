@@ -724,6 +724,13 @@ function updateResponsiveScale() {
     }
 }
 
+function isTouchDevice() {
+    try {
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+    } catch(_) {}
+    return ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+}
+
 // Update on resize
 window.addEventListener('resize', () => {
     updateResponsiveScale();
@@ -2017,7 +2024,7 @@ function updateUI() {
     // Gestione barra di progresso (responsive)
     const progressBarFill = document.getElementById('progress-fill');
     if (progressBarFill) {
-        if (window.innerWidth <= 768) {
+        if (isTouchDevice()) {
             progressBarFill.style.width = progress + '%';
             progressBarFill.style.height = '100%';
         } else {
@@ -2062,7 +2069,7 @@ function updateUI() {
         document.getElementById('bullets-count').textContent = remainingBullets;
     }
 
-    if (window.innerWidth <= 768) {
+    if (isTouchDevice()) {
         const lvlEl = document.getElementById('current-level');
         if (lvlEl && lvlEl.parentElement) lvlEl.parentElement.style.display = 'none';
         const pizzaEl = document.getElementById('current-pizza');
