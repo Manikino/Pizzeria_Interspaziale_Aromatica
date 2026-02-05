@@ -513,11 +513,10 @@ let spaceship = {
 
 // Restituisce l'hitbox effettiva della navicella (ridotta rispetto al rendering)
 function getShipHitbox() {
-    // Riduciamo l'hitbox per rendere il gameplay pi meno punitivo
-        const w = spaceship.width || 30; // Adjusted width for hitbox
-        const h = spaceship.height || 40; // Height remains the same
-    const shrinkW = 0.35; // 35% della larghezza (dimezzata rispetto al 70% precedente)
-    const shrinkH = 0.375; // 37.5% dell'altezza (dimezzata rispetto al 75% precedente)
+        const w = spaceship.width || 30;
+        const h = spaceship.height || 40;
+    const shrinkW = 0.25;
+    const shrinkH = 0.3;
     const offsetX = (w - w * shrinkW) / 2;
     const offsetY = (h - h * shrinkH) / 2;
     return {
@@ -998,29 +997,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function resizeGameCanvas() {
         const container = document.querySelector('.game-container');
         if (!container) return;
-        
-        // Calcola la larghezza disponibile
+
         const windowWidth = window.innerWidth;
-        const availableHeight = window.innerHeight * 0.8; // 80vh
-        
-        // Limita il canvas a 2/3 della larghezza dello schermo
-        const targetWidth = Math.min(windowWidth * 0.66, baseCanvasWidth);
-        
-        // Calcola il fattore di scala mantenendo le proporzioni
-        const widthScale = targetWidth / baseCanvasWidth;
-        const heightScale = availableHeight / baseCanvasHeight;
-        canvasScaleFactor = Math.min(widthScale, heightScale);
-        
-        // Imposta le nuove dimensioni del canvas
-        canvas.width = Math.round(baseCanvasWidth * canvasScaleFactor);
-        canvas.height = Math.round(baseCanvasHeight * canvasScaleFactor);
-        
-        // Centra il canvas nella game-container
+        const windowHeight = window.innerHeight;
+
+        if (windowWidth <= 768) {
+            const targetWidth = Math.floor(windowWidth * 0.98);
+            const targetHeight = Math.floor(windowHeight * 0.6);
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+        } else {
+            const targetWidth = Math.min(windowWidth * 0.9, baseCanvasWidth);
+            const targetHeight = Math.min(windowHeight * 0.75, baseCanvasHeight);
+            const widthScale = targetWidth / baseCanvasWidth;
+            const heightScale = targetHeight / baseCanvasHeight;
+            canvasScaleFactor = Math.min(widthScale, heightScale);
+            canvas.width = Math.round(baseCanvasWidth * canvasScaleFactor);
+            canvas.height = Math.round(baseCanvasHeight * canvasScaleFactor);
+        }
+
         canvas.style.margin = '0 auto';
         container.style.display = 'flex';
         container.style.justifyContent = 'center';
         container.style.width = '100%';
-        container.style.paddingRight = '0'; // Rimuovi il padding-right
+        container.style.paddingRight = '0';
     }
     
     // Ridimensiona il canvas all'avvio e quando la finestra cambia dimensione
@@ -2062,6 +2062,13 @@ function updateUI() {
     document.getElementById('progress-text').textContent = isInfiniteMode ? ('Fase ' + Math.floor(progress) + '%') : (Math.floor(progress) + '%');
     document.getElementById('bullets-count').textContent = remainingBullets;
 
+    if (window.innerWidth <= 768) {
+        const lvlEl = document.getElementById('current-level');
+        if (lvlEl && lvlEl.parentElement) lvlEl.parentElement.style.display = 'none';
+        const pizzaEl = document.getElementById('current-pizza');
+        if (pizzaEl && pizzaEl.parentElement) pizzaEl.parentElement.style.display = 'none';
+    }
+
     // Indicatore scudo temporaneo
     const tempShieldIndicator = document.getElementById('temp-shield-indicator');
     if (tempShieldIndicator) {
@@ -2453,30 +2460,23 @@ function updateTakeoffAnimation() {
     spaceship.thrusterActive = animationProgress > 0.1;
     
 // Fine animazione
-if (animationProgress >= 1) {
+    if (animationProgress >= 1) {
         animationState = 'game';
-        // Pulisci i tasti ma NON abilitare ancora l'input
         clearGameKeys();
-        inputEnabled = false; // Manteniamo l'input disabilitato fino alla fine del dialogo
-        canMove = false; // Disabilita il movimento del player durante il dialogo
+        inputEnabled = true;
+        canMove = true;
         gameStartTime = Date.now();
         lastAmmoSpawn = gameStartTime;
         lastTimedShieldSpawn = gameStartTime;
-        
-        // Avvia la sequenza di dialogo una sola volta
-        if (!dialogStartedAfterTakeoff) {
-            dialogStartedAfterTakeoff = true;
-            startDialogAfterTakeoff();
-        }
-        // Posizionamento finale della navicella per il gameplay
+
         spaceship.x = canvas.width / 2 - spaceship.width / 2;
         spaceship.y = canvas.height - spaceship.height - 20;
         spaceship.width = 60;
         spaceship.height = 40;
         spaceship.thrusterActive = false;
-        
-        // Lo spawn dei meteoriti verrà gestito dalla funzione resumeMeteorSpawn()
-        // che sarà chiamata alla fine del dialogo
+
+        resumeMeteorSpawn();
+        resumeProgressFill();
     }
 }
 
