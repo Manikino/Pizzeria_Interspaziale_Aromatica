@@ -1287,75 +1287,86 @@ button:hover:not(.locked) {
     /* Manuale di volo */
     #documentation {
         justify-content: flex-start;
-        padding: 14px 12px 20px;
+        padding: 8px 10px 12px;
         overflow-y: auto;
     }
 
     #documentation h3 {
-        font-size: 1rem;
-        margin: 6px 0 10px;
+        font-size: 0.85rem;
+        margin: 2px 0 6px;
     }
 
     .docs-content {
         width: 100%;
-        padding: 14px;
-        margin-top: 6px;
+        padding: 10px;
+        margin-top: 2px;
     }
 
     .docs-content h4 {
-        font-size: 0.85rem;
-        margin-bottom: 8px;
+        font-size: 0.72rem;
+        margin-bottom: 5px;
     }
 
     .docs-content p,
     .docs-content li {
-        font-size: 0.72rem;
-        line-height: 1.6;
+        font-size: 0.6rem;
+        line-height: 1.45;
     }
 
     .docs-content ul {
-        margin-left: 14px;
-        margin-bottom: 10px;
+        margin-left: 10px;
+        margin-bottom: 6px;
     }
 
     #back-from-docs {
         width: 100%;
-        padding: 14px;
-        font-size: 0.85rem;
+        padding: 10px;
+        font-size: 0.72rem;
     }
 
     /* Equipaggio */
     #credits {
         justify-content: flex-start;
-        padding: 16px 12px 20px;
+        padding: 8px 10px 12px;
         overflow-y: auto;
     }
 
     #credits h3 {
-        font-size: 1rem;
-        margin: 6px 0 10px;
+        font-size: 0.85rem;
+        margin: 2px 0 6px;
     }
 
     .credits-content {
         width: 100%;
-        padding: 14px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
     }
 
     .credits-content p {
-        font-size: 0.75rem;
-        line-height: 1.6;
+        font-size: 0.62rem;
+        line-height: 1.45;
+        margin: 0 0 6px;
     }
 
     .credits-docs-text {
-        margin-top: 12px;
-        margin-bottom: 10px;
+        display: none;
     }
 
-    .credits-docs-button,
     .credits-content .back-button {
+        order: 1;
         width: 100%;
-        padding: 14px;
-        font-size: 0.85rem;
+        padding: 10px;
+        font-size: 0.72rem;
+        margin-top: 4px;
+    }
+
+    .credits-docs-button {
+        order: 2;
+        width: 100%;
+        padding: 10px;
+        font-size: 0.72rem;
+        margin-bottom: 0;
     }
 
     /* Mobile Game Screen Optimization */
