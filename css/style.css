@@ -861,6 +861,17 @@ body.game-mode {
     padding: 20px;
 }
 
+.credits-docs-text {
+    margin-top: 18px;
+    margin-bottom: 12px;
+}
+
+.credits-docs-button {
+    display: inline-block;
+    text-decoration: none;
+    margin-bottom: 18px;
+}
+
 .game-instructions {
     font-size: 0.9rem;
     color: #aaa;
